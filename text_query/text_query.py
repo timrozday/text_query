@@ -50,7 +50,7 @@ def rec_parse(node):
     
     return {'tag':tag, 'nodes': node_items}
 
-def handle_sentance(s, stop_words):
+def handle_sentence(s, stop_words = {'of', 'type', 'with', 'and', 'the', 'or', 'due', 'in', 'to', 'by', 'as', 'a', 'an', 'is', 'for', '.', ',', ':', ';', '?', '-', '(', ')'}):
     sentances = split_tag_sentences(" ".join(s))
     for i, words in enumerate(sentances):
         words = [(w[0], "stop word" if w in stop_words else "word", i, w[1]) for i, w in enumerate(words)]
@@ -68,14 +68,14 @@ def rec_join_str(node):
             s.append(str(n))
         else:
             if len(s) > 0:
-                string_item = handle_sentance(s)
+                string_item = handle_sentence(s)
                 joined_items.append(copy.deepcopy(string_item))
                 s = []
                 
             joined_items.append((rec_join_str(n)))
     
     if len(s) > 0:
-        string_item = handle_sentance(s)
+        string_item = handle_sentence(s)
         joined_items.append(copy.deepcopy(string_item))
     
     if len(joined_items) == 0: return None
