@@ -3,6 +3,14 @@ import itertools as it
 import spacy
 import scispacy
 
+def generate_kmers(l,n):
+    for i in range(len(l)-n+1):
+        yield tuple(sorted(l[i:i+n]))
+
+def generate_ordered_kmers(l,n):
+    for i in range(len(l)-n+1):
+        yield l[i:i+n]
+
 def text_filter(s):
     try:
         s = re.sub('\\\\n',' ',s)
