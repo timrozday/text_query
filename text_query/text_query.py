@@ -319,6 +319,7 @@ def expand_lists(sentence):
     sentence['conn'] = conn
     return sentence
 
+
 def rec_kmer_query(node, loc, index):
     results = {}
     if node['tag'] == "string":
