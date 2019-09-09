@@ -354,14 +354,14 @@ def rec_kmer_query(node, loc, index):
                     kmers[n].add(kmer)
             
             # get matches
-            matches = {}
+            matches = set()
             for n in range(1,4):
                 for kmer in kmers[n]:
                     try: matches.update(index[n][kmer])
                     except: continue
 
             if len(matches)>0:
-                results[tuple(new_loc)] = {'words': word_index, 'conn': conn, 'matches': matches}            
+                results[tuple(new_loc)] = {'words': word_index, 'conn': conn, 'matches': matches}
             
     else:
         for i,n in enumerate(node['nodes']):
@@ -379,7 +379,7 @@ def all_words_query(sentences):
         sentence_good_matches = set()
         all_words = {w['word'].lower() for w in sentence['words'].values()}
 
-        for match_id, match_term in sentence['matches'].items():
+        for match_id, match_term in sentence['matches']:
             query = set(match_term)    
             if len(query.difference(all_words)) <= 1: 
                 sentence_good_matches.add((match_id, match_term))
