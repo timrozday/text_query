@@ -3,14 +3,6 @@ import itertools as it
 import spacy
 import scispacy
 
-def generate_kmers(l,n):
-    for i in range(len(l)-n+1):
-        yield tuple(sorted(l[i:i+n]))
-
-def generate_ordered_kmers(l,n):
-    for i in range(len(l)-n+1):
-        yield l[i:i+n]
-
 def text_filter(s):
     try:
         s = re.sub('\\\\n',' ',s)
@@ -58,7 +50,7 @@ def rec_parse(node):
     
     return {'tag':tag, 'nodes': node_items}
 
-def handle_sentance(s):
+def handle_sentance(s, stop_words):
     sentances = split_tag_sentences(" ".join(s))
     for i, words in enumerate(sentances):
         words = [(w[0], "stop word" if w in stop_words else "word", i, w[1]) for i, w in enumerate(words)]
@@ -91,6 +83,13 @@ def rec_join_str(node):
     return {'tag':node['tag'], 'nodes': joined_items}
 
 
+def generate_kmers(l,n):
+    for i in range(len(l)-n+1):
+        yield tuple(sorted(l[i:i+n]))
+
+def generate_ordered_kmers(l,n):
+    for i in range(len(l)-n+1):
+        yield l[i:i+n]
 
 def gen_rev_conn(conn):
     rev_conn = {}
