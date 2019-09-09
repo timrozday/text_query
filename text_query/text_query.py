@@ -50,7 +50,7 @@ def rec_parse(node):
     
     return {'tag':tag, 'nodes': node_items}
 
-def handle_sentence(s, stop_words = {'of', 'type', 'with', 'and', 'the', 'or', 'due', 'in', 'to', 'by', 'as', 'a', 'an', 'is', 'for', '.', ',', ':', ';', '?', '-', '(', ')'}):
+def handle_sentence(s, nlp, stop_words={'of', 'type', 'with', 'and', 'the', 'or', 'due', 'in', 'to', 'by', 'as', 'a', 'an', 'is', 'for', '.', ',', ':', ';', '?', '-', '(', ')'}):
     sentences = split_tag_sentences(" ".join(s), nlp)
     for i, words in enumerate(sentences):
         words = [(w[0], "stop word" if w in stop_words else "word", i, w[1]) for i, w in enumerate(words)]
@@ -126,7 +126,7 @@ def rec_conn_gen_kmers(sentence, kmer, n, stop_words):
         results.update(rec_conn_gen_kmers(sentence, kmer + [conn_id], n, stop_words))
     return results
 
-def conn_gen_kmers(sentence, n, stop_words = {'of', 'type', 'with', 'and', 'the', 'or', 'due', 'in', 'to', 'by', 'as', 'a', 'an', 'is', 'for', '.', ',', ':', ';', '?', '-', '(', ')'}):
+def conn_gen_kmers(sentence, n, stop_words={'of', 'type', 'with', 'and', 'the', 'or', 'due', 'in', 'to', 'by', 'as', 'a', 'an', 'is', 'for', '.', ',', ':', ';', '?', '-', '(', ')'}):
     
     kmers = set()
     for word_id in sentence['words'].keys():
