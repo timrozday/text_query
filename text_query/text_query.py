@@ -468,11 +468,11 @@ def loc_based_query(sentences):
         
     return very_good_matches
 
-def mesh_query(sections):
+def mesh_query(sections, index):
     all_results = []
     for i, section in enumerate(sections):
         if not section is None: 
-            results = rec_kmer_query(section, [i], mesh_kmer_index)
+            results = rec_kmer_query(section, [i], index)
             results = all_words_query(results)
             results = loc_based_query(results)
             all_results.append(results)
