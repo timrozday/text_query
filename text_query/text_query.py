@@ -51,14 +51,14 @@ def rec_parse(node):
     return {'tag':tag, 'nodes': node_items}
 
 def handle_sentence(s, stop_words = {'of', 'type', 'with', 'and', 'the', 'or', 'due', 'in', 'to', 'by', 'as', 'a', 'an', 'is', 'for', '.', ',', ':', ';', '?', '-', '(', ')'}):
-    sentances = split_tag_sentences(" ".join(s))
-    for i, words in enumerate(sentances):
+    sentences = split_tag_sentences(" ".join(s), nlp)
+    for i, words in enumerate(sentences):
         words = [(w[0], "stop word" if w in stop_words else "word", i, w[1]) for i, w in enumerate(words)]
-        sentances[i] = {'words': words}
-    return {'tag': "string", 'nodes': sentances}
+        sentences[i] = {'words': words}
+    return {'tag': "string", 'nodes': sentences}
 
-# join neighboring strings together, split them by sentence attaching the label "string" to each sentance. Split each sentance into words, tag the stop words. 
-def rec_join_str(node):
+# join neighboring strings together, split them by sentence attaching the label "string" to each sentence. Split each sentence into words, tag the stop words. 
+def rec_join_str(node, nlp):
     if node is None: return None
     joined_items = []
     s = []
@@ -68,14 +68,14 @@ def rec_join_str(node):
             s.append(str(n))
         else:
             if len(s) > 0:
-                string_item = handle_sentence(s)
+                string_item = handle_sentence(s, nlp)
                 joined_items.append(copy.deepcopy(string_item))
                 s = []
                 
-            joined_items.append((rec_join_str(n)))
+            joined_items.append((rec_join_str(n, nlp)))
     
     if len(s) > 0:
-        string_item = handle_sentence(s)
+        string_item = handle_sentence(s, nlp)
         joined_items.append(copy.deepcopy(string_item))
     
     if len(joined_items) == 0: return None
