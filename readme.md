@@ -12,7 +12,7 @@
 
 **returns:** `list` of `tuple`
 
-**Description:** Splits string into list of POS-tagged words. Used in `handle_sentance(s: string, stop_words: set)`
+**Description:** Splits string into list of POS-tagged words. Used in `handle_sentance(s, stop_words)`
 
 #### `rec_parse(node: dict)`
 
@@ -44,7 +44,7 @@
 
 **yields:** `list`
 
-**Description:** Splits list into kmers of length `n`, retains the original order (unlike `generate_kmers(l: list, n: int)`)
+**Description:** Splits list into kmers of length `n`, retains the original order (unlike `generate_kmers(l, n)`)
 
 #### `gen_rev_conn(conn: dict)`
 
