@@ -53,16 +53,16 @@ def rec_parse(node):
 def handle_sentence(s, nlp, stop_words={'of', 'type', 'with', 'and', 'the', 'or', 'due', 'in', 'to', 'by', 'as', 'a', 'an', 'is', 'for', '.', ',', ':', ';', '?', '-', '(', ')'}):
     sentences = split_tag_sentences(" ".join(s), nlp)
     for i, words in enumerate(sentences):
-        word_index = {i: {'word': w[0], 
+        word_index = {j: {'word': w[0], 
                           'type': "stop word" if w in stop_words else "word", 
-                          'id': i, 
-                          'tag': w[1]} for i, w in enumerate(words)}
+                          'id': j, 
+                          'tag': w[1]} for j, w in enumerate(words)}
 
-        ids = [w[2] for w in s['words']]
+        ids = sorted(list(word_index.keys()))
         conn = {}
-        for i in range(1,len(ids)):
-            try: conn[ids[i-1]].add(ids[i])
-            except: conn[ids[i-1]] = {ids[i]}
+        for j in range(1,len(ids)):
+            try: conn[ids[j-1]].add(ids[j])
+            except: conn[ids[j-1]] = {ids[j]}
 
         sentences[i] = {'words': word_index, 'conn': conn}
     return sentences
