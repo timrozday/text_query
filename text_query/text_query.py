@@ -598,10 +598,9 @@ def expand_thesaurus(matches, sentence, indexes)
         match_end_ids = match_word_ids - set(match_conn.keys()) 
 
         names = []
-        try: names += ncit_names_index[match['code']]
-        except: pass
-        try: names += uberon_names_index[match['code']]
-        except: pass
+        for index in indexes:
+            try: names += index[match['code']]
+            except: pass
 
         for name in names:
             # add words (making sure not to add duplicate words <-- difficult, let's not do that for now)
