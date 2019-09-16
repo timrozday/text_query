@@ -274,6 +274,7 @@ def expand_lists(sentence):
     sentences_ids = rec_gen_sentences(conn, [start_id])
     for sentence_ids in sentences_ids:
         tags = [f"{i}{sentence['words'][i]['tag']}" for i in sentence_ids]
+        s_pos_map = {word_id:i for i,word_id in enumerate(sentence_ids)}
         text_lists = re.findall('((?:(?:\d+(?:JJ|DT|NN|NNS|\?))+\d+(?:,|CC))+(?:\d+(?:JJ|DT|NN|NNS|\?))+)', "".join(tags)) # find all the sentences
         # generate all the versions of each list
         all_combs = []
@@ -311,19 +312,19 @@ def expand_lists(sentence):
                 # add begining to all heads
                 for h in heads:
                     for h_id in h:
-                        if h_id >= m[0]: continue
+                        if s_pos_map[h_id] >= s_pos_map[m[0]]: continue
                         conn[h_id].add(m[0])
                 # add end to all tails
                 for t in tails:
                     for t_id in t:
-                        if m[-1] >= t_id: continue
+                        if s_pos_map[m[-1]] >= s_pos_map[t_id]: continue
                         conn[m[-1]].add(t_id)
             
             for h in heads:
                 for h_id in h:
                     for t in tails:
                         for t_id in t:
-                            if h_id >= t_id: continue
+                            if s_pos_map[h_id] >= s_pos_map[t_id]: continue
                             try: conn[h_id].add(t_id)
                             except: print(h_id, conn)
                     
