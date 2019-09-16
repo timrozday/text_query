@@ -1,5 +1,6 @@
 # Text Query Functions
 
+
 ## Parse XML
 
 #### `text_filter(s: string)`
@@ -25,6 +26,7 @@
 **returns:** `dict`
 
 **Description:** Takes XML node contents, tokenises, assigns POS tags and lables stop-words. Returns `string` node containing list of parsed sentences. Used in `rec_join_str(node)`.
+
 
 ## Pre-process the Parsed Sentences
 
@@ -138,3 +140,43 @@
 **returns:** `list`
 
 **Description:** For each indications section for a DailyMed SPL, find potential matches using `rec_kmer_query` and then remove false positives with `all_words_query` and `loc_based_query`. 
+
+
+## Perform thesaurus expansions of terms
+
+#### `conn_sentence_kmer_query(sentence: dict, indexes: list)`
+
+**yields:** `dict`
+
+**Description:** Queries a connected sentence (ie a sentence with a `word_index` and a `conn` dict) with a kmer. Kmers are generated using `conn_gen_kmers`, these are then queried against the indexes in the function argument.
+
+#### `conn_sentence_all_word_query(sentence, matches)`
+
+**yields:** `dict`
+
+**Description:** Takes matches from `conn_sentence_kmer_query` and checks if all of the words of the match is present in the matching sentence. Only matches that pass this check are yielded.
+
+#### `conn_sentence_loc_query(sentence: dict, matches: list)`
+
+**yields:** `dict`
+
+**Description:** Takes matches from `conn_sentence_all_word_query`, locates the matching words in the sentence and performs checks to see if the match is valid. Uses `conn_sentence_match_paths` to locate the matching words. A match location is valid if there are gaps with a frequency of 1 gap per 3 words or less, and the location contains all of the match words.
+
+#### `conn_sentence_match_paths(sentence: dict, match_sentence: dict, stop_words: set)` 
+
+**yields:** `dict`
+
+**Description:** Used with `conn_sentence_loc_query`, finds paths through a connected sentence that connect the match words. Filters out paths that do not contain all the match words.
+
+#### `expand_index(sentence: dict, indexes: list)`
+
+**returns:** `list`
+
+**Description:** joins `conn_sentence_kmer_query`, `conn_sentence_all_word_query` and `conn_sentence_loc_query` together to find all thesaurus matches in a sentence. Used for thesaurus expansion. 
+
+#### `expand_thesaurus(matches: list, sentence:dict, indexes: list)`
+
+**returns:** `dict`
+
+**Description:** Takes validated thesaurus matches from `conn_sentence_loc_query` and performs thesaurus expansions on those matching words. The alternative words are added to `word_index`, and the beginning and end words of each match path are connected to these new words also. 
+

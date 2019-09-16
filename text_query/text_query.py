@@ -495,7 +495,7 @@ def mesh_query(sections, index):
 def conn_sentence_kmer_query(sentence, indexes):
     used_codes = set()
     for n in range(1,4):
-        kmers = tq.conn_gen_kmers(sentence, n)
+        kmers = conn_gen_kmers(sentence, n)
         for kmer in kmers:
             kmer = tuple(sorted([sentence['words'][i]['word'].lower() for i in kmer]))
             for index in indexes:
@@ -552,15 +552,15 @@ def conn_sentence_match_paths(sentence, match_sentence, stop_words): # get paths
     match_words = {w['word'].lower() for k,w in match_sentence['words'].items()}
     matching_words = [w for k,w in sentence['words'].items() if w['word'].lower() in match_words] # sentence words that are in 'match'
 
-    rev_conn = tq.gen_rev_conn(sentence['conn'])
+    rev_conn = gen_rev_conn(sentence['conn'])
     
     # generate routes between these match words
     word_next_ids = {}
     word_prev_ids = {}
     for w in matching_words:
-        next_ids = tq.next_conn_skip_stop_words(sentence, w['id'], stop_words)
+        next_ids = next_conn_skip_stop_words(sentence, w['id'], stop_words)
         if len(next_ids): word_next_ids[w['id']] = next_ids
-        for prev_id in tq.next_rev_conn_skip_stop_words(sentence, rev_conn, w['id'], stop_words):
+        for prev_id in next_rev_conn_skip_stop_words(sentence, rev_conn, w['id'], stop_words):
             try: word_prev_ids[prev_id].add(w['id'])
             except: word_prev_ids[prev_id] = {w['id']}
 
@@ -568,7 +568,7 @@ def conn_sentence_match_paths(sentence, match_sentence, stop_words): # get paths
     used_ids = set()
     for start_id in {w['id'] for w in matching_words}:
         if start_id in used_ids: continue
-        new_paths = tq.rec_matching_word_paths({w['id'] for w in matching_words}, word_next_ids, word_prev_ids, [{'id': start_id, 'gap': 0}])
+        new_paths = rec_matching_word_paths({w['id'] for w in matching_words}, word_next_ids, word_prev_ids, [{'id': start_id, 'gap': 0}])
         for p in new_paths:
             used_ids.update({i['id'] for i in p})
         paths += new_paths
@@ -587,3 +587,61 @@ def expand_index(sentence, indexes):
     matches = conn_sentence_loc_query(sentence, matches)
     
     return matches
+
+def expand_thesaurus(matches, sentence, indexes)
+    for match in matches:
+        # find start and end IDs
+        match_conn = match['sentence']['conn']
+        match_rev_conn = gen_rev_conn(match_conn)
+        match_word_ids = set(match['sentence']['words'].keys())
+        match_start_ids = match_word_ids - set(match_rev_conn.keys()) 
+        match_end_ids = match_word_ids - set(match_conn.keys()) 
+
+        names = []
+        try: names += ncit_names_index[match['code']]
+        except: pass
+        try: names += uberon_names_index[match['code']]
+        except: pass
+
+        for name in names:
+            # add words (making sure not to add duplicate words <-- difficult, let's not do that for now)
+            max_id = max(sentence['words'].keys())
+            name_to_sentence_map = {}
+            for k,v in name['sentence']['words'].items():
+                i = v['id']
+                new_id = max_id+i+1
+                new_word = v.copy()
+                new_word['id'] = new_id
+
+                name_to_sentence_map[i] = new_id
+                sentence['words'][new_id] = new_word
+
+            # add conn from name
+            for k,vs in name['sentence']['conn'].items():
+                new_k = name_to_sentence_map[k]
+                for v in vs:
+                    new_v = name_to_sentence_map[v]
+                    try: sentence['conn'][new_k].add(new_v)
+                    except: sentence['conn'][new_k] = {new_v}
+
+            # add to conn to connect the beginning and end
+            name_rev_conn = gen_rev_conn(name['sentence']['conn'])
+            name_word_ids = set(name['sentence']['words'].keys())
+            name_start_ids = name_word_ids - set(name_rev_conn.keys()) 
+            name_end_ids = name_word_ids - set(name['sentence']['conn'].keys()) 
+
+            rev_conn = gen_rev_conn(sentence['conn'])
+
+            for match_start_id in match_start_ids:
+                if not match_start_id in rev_conn: continue
+                for prev_match_start_id in rev_conn[match_start_id]:
+                    sentence['conn'][prev_match_start_id].update({name_to_sentence_map[v] for v in name_start_ids})
+
+            for name_end_id in name_end_ids:
+                name_end_id = name_to_sentence_map[name_end_id]
+                for match_end_id in match_end_ids:
+                    if not match_end_id in sentence['conn']: continue
+                    try: sentence['conn'][name_end_id].update(sentence['conn'][match_end_id])
+                    except: sentence['conn'][name_end_id] = sentence['conn'][match_end_id]
+                        
+    return sentence
