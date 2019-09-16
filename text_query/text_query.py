@@ -588,7 +588,7 @@ def expand_index(sentence, indexes):
     
     return matches
 
-def expand_thesaurus(matches, sentence, indexes)
+def expand_thesaurus(matches, sentence, indexes):
     for match in matches:
         # find start and end IDs
         match_conn = match['sentence']['conn']
