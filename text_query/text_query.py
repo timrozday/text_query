@@ -490,3 +490,100 @@ def mesh_query(sections, index):
             results = loc_based_query(results)
             all_results.append(results)
     return all_results
+
+
+def conn_sentence_kmer_query(sentence, indexes):
+    used_codes = set()
+    for n in range(1,4):
+        kmers = tq.conn_gen_kmers(sentence, n)
+        for kmer in kmers:
+            kmer = tuple(sorted([sentence['words'][i]['word'].lower() for i in kmer]))
+            for index in indexes:
+                if kmer in index[n].keys():
+                    for match in [{'code': k, 'sentence': v} for k,vs in index[n][kmer].items() for v in vs]:
+                        if not match['code'] in used_codes:
+                            used_codes.add(match['code'])
+                            yield match
+
+def conn_sentence_all_word_query(sentence, matches):
+    sentence_words = {v['word'] for k,v in sentence['words'].items()}
+    for match in matches:
+        match_words = {v['word'] for k,v in match['sentence']['words'].items()}
+        if len(match_words - sentence_words) == 0: yield match
+
+def conn_sentence_loc_query(sentence, matches):
+    stop_words = {'of', 'type', 'with', 'and', 'the', 'or', 'due', 'in', 'to', 'by', 'as', 'a', 'an', 'is', 'for', '.', ',', ':', ';', '?', '-', '(', ')'}
+    
+    for match in matches:
+        paths = conn_sentence_match_paths(sentence, match['sentence'], stop_words)
+        paths_words = {}
+        paths_conn = {}
+        for path in paths:
+            # filter out paths that have too many gaps
+            gap_sum = sum([w['gap'] for w in path])
+            if gap_sum > len(match['sentence']['words']) / 3: continue
+            
+            # build new connected-sentence out of the paths
+            for i in range(1,len(path)):
+                path_id = path[i-1]['id']
+                next_path_id = path[i]['id']
+                paths_words[path_id] = sentence['words'][path_id]
+                try: paths_conn[path_id].add(next_path_id)
+                except: paths_conn[path_id] = {next_path_id}
+                paths_conn[next_path_id] = set()
+                paths_words[next_path_id] = sentence['words'][next_path_id]
+            
+        path_sentence = {'words': paths_words, 'conn': paths_conn}
+        
+        # verify the paths sentence by reversing the previous section and finding matches to the path in the original sentence. 
+        # If there is one valid reverse path then the path is verified
+        inv_paths = conn_sentence_match_paths(match['sentence'], path_sentence, stop_words)
+        for path in inv_paths:
+            gap_sum = sum([w['gap'] for w in path])
+            if gap_sum > len(match['sentence']['words']) / 3: 
+                continue
+            else:
+                match['path'] = path_sentence # contains the location of the match
+                yield match
+                break
+
+def conn_sentence_match_paths(sentence, match_sentence, stop_words): # get paths through sentence between match_sentence words
+    # get all instances of match words in sentence
+    match_words = {w['word'].lower() for k,w in match_sentence['words'].items()}
+    matching_words = [w for k,w in sentence['words'].items() if w['word'].lower() in match_words] # sentence words that are in 'match'
+
+    rev_conn = tq.gen_rev_conn(sentence['conn'])
+    
+    # generate routes between these match words
+    word_next_ids = {}
+    word_prev_ids = {}
+    for w in matching_words:
+        next_ids = tq.next_conn_skip_stop_words(sentence, w['id'], stop_words)
+        if len(next_ids): word_next_ids[w['id']] = next_ids
+        for prev_id in tq.next_rev_conn_skip_stop_words(sentence, rev_conn, w['id'], stop_words):
+            try: word_prev_ids[prev_id].add(w['id'])
+            except: word_prev_ids[prev_id] = {w['id']}
+
+    paths = []
+    used_ids = set()
+    for start_id in {w['id'] for w in matching_words}:
+        if start_id in used_ids: continue
+        new_paths = tq.rec_matching_word_paths({w['id'] for w in matching_words}, word_next_ids, word_prev_ids, [{'id': start_id, 'gap': 0}])
+        for p in new_paths:
+            used_ids.update({i['id'] for i in p})
+        paths += new_paths
+    
+    # filter out paths that miss out words
+    matching_word_words = {w['word'].lower() for w in matching_words}
+    for path in paths:
+        path_words = {sentence['words'][w['id']]['word'].lower() for w in path}
+        if len(matching_word_words - path_words) > 0: continue
+        else: yield path
+
+def expand_index(sentence, indexes):
+    # find matches from the thesaurus indexes
+    matches = conn_sentence_kmer_query(sentence, indexes)
+    matches = conn_sentence_all_word_query(sentence, matches)
+    matches = conn_sentence_loc_query(sentence, matches)
+    
+    return matches
