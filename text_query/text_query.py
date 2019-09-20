@@ -213,7 +213,7 @@ def expand_slash(sentence):
             max_id = max({w['id'] for w in (words + new_words)}) # for generating new IDs
             
             for i,w in enumerate(split_words):
-                new_words.append({'id': max_id+i+1, 'word': w, 'type': word['type'], 'tag': word['tag'], 'parent': word['id']}) # add the new word
+                new_words.append({'id': max_id+i+1, 'word': w, 'type': word['type'], 'tag': word['tag'], 'parent': {word['id']}}) # add the new word
                 # generate the new connections to that word (copy them from the original word)
                 try: conn[max_id+i+1] = set(conn[word['id']])
                 except: pass
@@ -242,10 +242,10 @@ def expand_hyphen(sentence):
             max_id = max({w['id'] for w in (words + new_words)}) # for generating new IDs
             
             # add new words
-            new_words.append({'id': max_id+1, 'word': split_words[0], 'type': word['type'], 'tag': word['tag'], 'parent': word['id']})
-            new_words.append({'id': max_id+len(split_words), 'word': split_words[-1], 'type': word['type'], 'tag': word['tag'], 'parent': word['id']})
+            new_words.append({'id': max_id+1, 'word': split_words[0], 'type': word['type'], 'tag': word['tag'], 'parent': {word['id']}})
+            new_words.append({'id': max_id+len(split_words), 'word': split_words[-1], 'type': word['type'], 'tag': word['tag'], 'parent': {word['id']}})
             for i,w in enumerate(split_words[1:-1]):
-                new_words.append({'id': max_id+i+2, 'word': w, 'type': word['type'], 'tag': word['tag'], 'parent': word['id']}) # add the new word
+                new_words.append({'id': max_id+i+2, 'word': w, 'type': word['type'], 'tag': word['tag'], 'parent': {word['id']}}) # add the new word
             
             # add begining connections
             if word['id'] in rev_conn.keys():
@@ -597,6 +597,8 @@ def expand_thesaurus(matches, sentence, indexes):
         match_start_ids = match_word_ids - set(match_rev_conn.keys()) 
         match_end_ids = match_word_ids - set(match_conn.keys()) 
 
+        match_path_ids = set(match['path']['words'].keys())  # for the added word parents 
+
         names = []
         for index in indexes:
             try: names += index[match['code']]
@@ -611,6 +613,7 @@ def expand_thesaurus(matches, sentence, indexes):
                 new_id = max_id+i+1
                 new_word = v.copy()
                 new_word['id'] = new_id
+                new_word['parent'] = match_path_ids.copy()
 
                 name_to_sentence_map[i] = new_id
                 sentence['words'][new_id] = new_word
