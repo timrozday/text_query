@@ -608,42 +608,43 @@ def expand_thesaurus(matches, sentence, indexes):
             # add words (making sure not to add duplicate words <-- difficult, let's not do that for now)
             max_id = max(sentence['words'].keys())
             name_to_sentence_map = {}
-            for k,v in name['sentence']['words'].items():
-                i = v['id']
-                new_id = max_id+i+1
-                new_word = v.copy()
-                new_word['id'] = new_id
-                new_word['parent'] = match_path_ids.copy()
+            for name_sentence in name['sentences']:
+                for k,v in name_sentence['words'].items():
+                    i = v['id']
+                    new_id = max_id+i+1
+                    new_word = v.copy()
+                    new_word['id'] = new_id
+                    new_word['parent'] = match_path_ids.copy()
 
-                name_to_sentence_map[i] = new_id
-                sentence['words'][new_id] = new_word
+                    name_to_sentence_map[i] = new_id
+                    name_sentence['words'][new_id] = new_word
 
-            # add conn from name
-            for k,vs in name['sentence']['conn'].items():
-                new_k = name_to_sentence_map[k]
-                for v in vs:
-                    new_v = name_to_sentence_map[v]
-                    try: sentence['conn'][new_k].add(new_v)
-                    except: sentence['conn'][new_k] = {new_v}
+                # add conn from name
+                for k,vs in name_sentence['conn'].items():
+                    new_k = name_to_sentence_map[k]
+                    for v in vs:
+                        new_v = name_to_sentence_map[v]
+                        try: name_sentence['conn'][new_k].add(new_v)
+                        except: name_sentence['conn'][new_k] = {new_v}
 
-            # add to conn to connect the beginning and end
-            name_rev_conn = gen_rev_conn(name['sentence']['conn'])
-            name_word_ids = set(name['sentence']['words'].keys())
-            name_start_ids = name_word_ids - set(name_rev_conn.keys()) 
-            name_end_ids = name_word_ids - set(name['sentence']['conn'].keys()) 
+                # add to conn to connect the beginning and end
+                name_rev_conn = gen_rev_conn(name_sentence['conn'])
+                name_word_ids = set(name_sentence['words'].keys())
+                name_start_ids = name_word_ids - set(name_rev_conn.keys()) 
+                name_end_ids = name_word_ids - set(name_sentence['conn'].keys()) 
 
-            rev_conn = gen_rev_conn(sentence['conn'])
+                rev_conn = gen_rev_conn(sentence['conn'])
 
-            for match_start_id in match_start_ids:
-                if not match_start_id in rev_conn: continue
-                for prev_match_start_id in rev_conn[match_start_id]:
-                    sentence['conn'][prev_match_start_id].update({name_to_sentence_map[v] for v in name_start_ids})
+                for match_start_id in match_start_ids:
+                    if not match_start_id in rev_conn: continue
+                    for prev_match_start_id in rev_conn[match_start_id]:
+                        sentence['conn'][prev_match_start_id].update({name_to_sentence_map[v] for v in name_start_ids})
 
-            for name_end_id in name_end_ids:
-                name_end_id = name_to_sentence_map[name_end_id]
-                for match_end_id in match_end_ids:
-                    if not match_end_id in sentence['conn']: continue
-                    try: sentence['conn'][name_end_id].update(sentence['conn'][match_end_id])
-                    except: sentence['conn'][name_end_id] = sentence['conn'][match_end_id]
+                for name_end_id in name_end_ids:
+                    name_end_id = name_to_sentence_map[name_end_id]
+                    for match_end_id in match_end_ids:
+                        if not match_end_id in sentence['conn']: continue
+                        try: sentence['conn'][name_end_id].update(sentence['conn'][match_end_id])
+                        except: sentence['conn'][name_end_id] = sentence['conn'][match_end_id]
                         
     return sentence
