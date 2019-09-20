@@ -617,7 +617,7 @@ def expand_thesaurus(matches, sentence, indexes):
                     new_word['parent'] = match_path_ids.copy()
 
                     name_to_sentence_map[i] = new_id
-                    name_sentence['words'][new_id] = new_word
+                    sentence['words'][new_id] = new_word
 
                 # add conn from name
                 for k,vs in name_sentence['conn'].items():
