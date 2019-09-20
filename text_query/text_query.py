@@ -624,8 +624,8 @@ def expand_thesaurus(matches, sentence, indexes):
                     new_k = name_to_sentence_map[k]
                     for v in vs:
                         new_v = name_to_sentence_map[v]
-                        try: name_sentence['conn'][new_k].add(new_v)
-                        except: name_sentence['conn'][new_k] = {new_v}
+                        try: sentence['conn'][new_k].add(new_v)
+                        except: sentence['conn'][new_k] = {new_v}
 
                 # add to conn to connect the beginning and end
                 name_rev_conn = gen_rev_conn(name_sentence['conn'])
