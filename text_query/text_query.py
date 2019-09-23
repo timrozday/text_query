@@ -2,6 +2,7 @@ import re
 import itertools as it
 import spacy
 import scispacy
+from html import unescape
 
 def text_filter(s):
     try:
@@ -48,7 +49,7 @@ def rec_parse(node):
     
     if len(node_items) == 0: return None
     
-    return {'tag':tag, 'nodes': node_items}
+    return {'tag': tag, 'nodes': node_items}
 
 def handle_sentence(s, nlp, stop_words={'of', 'type', 'with', 'and', 'the', 'or', 'due', 'in', 'to', 'by', 'as', 'a', 'an', 'is', 'for', '.', ',', ':', ';', '?', '-', '(', ')', '/', '\\', '\'', '"', '\n', '\t', '\r'}):
     sentences = split_tag_sentences(" ".join(s), nlp)
