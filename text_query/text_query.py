@@ -3,6 +3,7 @@ import itertools as it
 import spacy
 import scispacy
 from html import unescape
+import copy
 
 def text_filter(s):
     try:
