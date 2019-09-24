@@ -454,21 +454,11 @@ def loc_based_query(sentences):
 def rec_query(node, loc, db_conn):
     results = {}
     if node['tag'] == "string":
-        for i,n in enumerate(node['nodes']):
+        for i,original_sentence in enumerate(node['nodes']):
             new_loc = loc+[i]
-            words = [tuple(w) for w in n['words']]
             
-            word_index = {w[2]:{'word': w[0], 'type': w[1], 'id': w[2], 'tag': w[3]} for w in n['words']}
-            
-            ids = [w[2] for w in words]
-            conn = {}
-            for i in range(1,len(ids)):
-                try: conn[ids[i-1]].add(ids[i])
-                except: conn[ids[i-1]] = {ids[i]}
-
-            sentence = {'words': word_index, 'conn': conn}
             # add other conns based on parentheses, hyphens, slashes and lists
-            sentence = expand_lists(sentence)
+            sentence = expand_lists(original_sentence)
             sentence = expand_brackets(sentence)
             sentence = expand_slash(sentence)
             sentence = expand_hyphen(sentence)
