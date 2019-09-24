@@ -521,13 +521,15 @@ def conn_sentence_loc_query(sentence, matches):
             if gap_sum > len(match['sentence']['words']) / 3: continue
             
             # build new connected-sentence out of the paths
-            for i in range(1,len(path)):
-                path_id = path[i-1]['id']
-                next_path_id = path[i]['id']
+            for i in range(0,len(path)):
+                path_id = path[i]['id']
                 paths_words[path_id] = sentence['words'][path_id]
+                try: next_path_id = path[i+1]['id']
+                except: continue
+
                 try: paths_conn[path_id].add(next_path_id)
                 except: paths_conn[path_id] = {next_path_id}
-                paths_conn[next_path_id] = set()
+                #paths_conn[next_path_id] = set()
                 paths_words[next_path_id] = sentence['words'][next_path_id]
             
         path_sentence = {'words': paths_words, 'conn': paths_conn}
@@ -546,7 +548,7 @@ def conn_sentence_loc_query(sentence, matches):
 
 def conn_sentence_match_paths(sentence, match_sentence, stop_words): # get paths through sentence between match_sentence words
     # get all instances of match words in sentence
-    match_words = {w['word'].lower() for k,w in match_sentence['words'].items()}
+    match_words = {w['word'].lower() for k,w in match_sentence['words'].items() if not w['word'].lower() in stop_words}
     matching_words = [w for k,w in sentence['words'].items() if w['word'].lower() in match_words] # sentence words that are in 'match'
 
     rev_conn = gen_rev_conn(sentence['conn'])
