@@ -451,23 +451,28 @@ def loc_based_query(sentences):
         
     return very_good_matches
 
+def query_sentence(original_sentence, db_conn):
+    # add other conns based on parentheses, hyphens, slashes and lists
+    sentence = expand_lists(original_sentence)
+    sentence = expand_brackets(sentence)
+    sentence = expand_slash(sentence)
+    sentence = expand_hyphen(sentence)
+    
+    # do querying
+    matches = kmer_query(sentence, db_conn)            
+    matches = all_word_query(sentence, matches)
+    matches = conn_sentence_loc_query(sentence, matches)
+    matches = list(matches)
+
+    return matches
+
 def rec_query(node, loc, db_conn):
     results = {}
     if node['tag'] == "string":
-        for i,original_sentence in enumerate(node['nodes']):
+        for i,sentence in enumerate(node['nodes']):
             new_loc = loc+[i]
-            
-            # add other conns based on parentheses, hyphens, slashes and lists
-            sentence = expand_lists(original_sentence)
-            sentence = expand_brackets(sentence)
-            sentence = expand_slash(sentence)
-            sentence = expand_hyphen(sentence)
-            
-            matches = kmer_query(sentence, db_conn)            
-            matches = all_word_query(sentence, matches)
-            matches = conn_sentence_loc_query(sentence, matches)
-            matches = list(matches)
-            
+            matches = query_sentence(sentence, db_conn)
+
             if len(matches)>0:
                 results[tuple(new_loc)] = {'loc': tuple(new_loc), 'sentence': sentence, 'matches': matches}
             
