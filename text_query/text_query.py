@@ -365,7 +365,7 @@ def kmer_query(sentence, db_conn):
 def all_word_query(sentence, matches):
     stop_words={'of', 'type', 'with', 'and', 'the', 'or', 'due', 'in', 'to', 'by', 'as', 'a', 'an', 'is', 'for', '.', ',', ':', ';', '?', '-', '(', ')', '/', '\\', '\'', '"', '\n', '\t', '\r'}
     
-    sentence_words = {v['word'] for k,v in sentence['words'].items()}
+    sentence_words = {v['word'].lower() for k,v in sentence['words'].items()}
     for match in matches:
         for match_sentence in match['sentence']:
             match_words = {v['word'].lower() for k,v in match_sentence['words'].items() if v['word'].lower() not in stop_words}
@@ -512,9 +512,9 @@ def conn_sentence_kmer_query(sentence, indexes):
                             yield match
 
 def conn_sentence_all_word_query(sentence, matches):
-    sentence_words = {v['word'] for k,v in sentence['words'].items()}
+    sentence_words = {v['word'].lower() for k,v in sentence['words'].items()}
     for match in matches:
-        match_words = {v['word'] for k,v in match['sentence']['words'].items()}
+        match_words = {v['word'].lower() for k,v in match['sentence']['words'].items()}
         if len(match_words - sentence_words) == 0: yield match
 
 def conn_sentence_loc_query(sentence, matches):
