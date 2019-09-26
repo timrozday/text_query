@@ -160,7 +160,9 @@ def rec_gen_sentences(conn, sentence):
     #if not sentence[-1] in conn: return {tuple(sentence)}
     sentences = set()
     for next_id in conn[sentence[-1]]:
-        if next_id is None: sentences.add(tuple(sentence))
+        if next_id is None: 
+            sentences.add(tuple(sentence))
+            continue
         sentences.update(rec_gen_sentences(conn, sentence+[next_id]))
     return sentences
 
