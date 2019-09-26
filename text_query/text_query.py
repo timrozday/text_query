@@ -528,10 +528,10 @@ def conn_sentence_loc_query(sentence, matches, stop_words={'of', 'type', 'with',
 
         # get all matching paths
         # find all start points for match paths
-        match_start_ids = next_conn_skip_stop_words(match_sentence, None, stop_words)
+        match_start_ids = next_conn_skip_stop_words(match['sentence'], None, stop_words)
         match_start_words = {}
         for word_id in match_start_ids:
-            word = match_sentence['words'][word_id]['word'].lower()
+            word = match['sentence']['words'][word_id]['word'].lower()
             try: match_start_words[word].add(word_id)
             except: match_start_words[word] = {word_id}
 
