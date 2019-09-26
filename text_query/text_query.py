@@ -527,7 +527,7 @@ def conn_sentence_loc_query(sentence, matches, stop_words={'of', 'type', 'with',
         good_paths = set()
         for path in sentence_paths:
             path_ids = {p[0] for p in path}
-            
+
             # filter out paths that have too many gaps
             gap_sum = sum([p[1] for p in path])
             if gap_sum/len(path_ids) < 3: 
@@ -546,11 +546,12 @@ def rec_conn_get_common_paths(sentence, match_sentence, sentence_path, match_pat
         if sentence_next_id is None: continue
         sentence_next_next_ids.update(next_conn_skip_stop_words(sentence, sentence_next_id, stop_words))
 
-    match_next_next_ids = set()
-    for match_next_id in match_next_ids:
-        if match_next_id is None: continue
-        match_next_next_ids.update(next_conn_skip_stop_words(match_sentence, match_next_id, stop_words))
+    # match_next_next_ids = set()
+    # for match_next_id in match_next_ids:
+    #     if match_next_id is None: continue
+    #     match_next_next_ids.update(next_conn_skip_stop_words(match_sentence, match_next_id, stop_words))
 
+    # form dictionary where each word has locs and the number of gaps needed to reach that loc
     sentence_next_words = {}
     for word_id in sentence_next_ids:
         word = sentence['words'][i]['word'].lower()
@@ -568,19 +569,15 @@ def rec_conn_get_common_paths(sentence, match_sentence, sentence_path, match_pat
         try: match_next_words[word].add((i,0))
         except: match_next_words[word] = {(i,0)}
 
-    match_next_words = {}
-    for word_id in match_next_next_ids:
-        word = sentence['words'][i]['word'].lower()
-        try: match_next_words[word].add((i,1))
-        except: match_next_words[word] = {(i,1)}
+    # for word_id in match_next_next_ids:
+    #     word = sentence['words'][i]['word'].lower()
+    #     try: match_next_words[word].add((i,1))
+    #     except: match_next_words[word] = {(i,1)}
 
+    # generate list of words that both sentence and match can move to, and generate all the word_ids that fascilitate this transition to the next words
     next_words = set(match_next_words.keys()) & set(sentence_next_words.keys())
-
-    # next_ids = set()
-    # for word in next_words:
-    #     next_ids.update({(a[0],b[0]) for a,b in it.product(sentence_next_words[word], match_next_words[word])})
-
     next_ids = it.product(sentence_next_words[word], match_next_words[word])
+
     paths = set()
     for sentence_next_id, match_next_id in next_ids:
         new_sentence_path = sentence_path+[sentence_next_id]
