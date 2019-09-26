@@ -531,6 +531,7 @@ def conn_sentence_loc_query(sentence, matches, stop_words={'of', 'type', 'with',
         match_start_ids = next_conn_skip_stop_words(match['sentence'], None, stop_words)
         match_start_words = {}
         for word_id in match_start_ids:
+            if word_id is None: continue
             word = match['sentence']['words'][word_id]['word'].lower()
             try: match_start_words[word].add(word_id)
             except: match_start_words[word] = {word_id}
@@ -563,6 +564,8 @@ def conn_sentence_loc_query(sentence, matches, stop_words={'of', 'type', 'with',
         yield match
 
 def rec_conn_get_common_paths(sentence, match_sentence, sentence_path, match_path, stop_words):
+    paths = set()
+
     sentence_next_ids = next_conn_skip_stop_words(sentence, sentence_path[-1][0], stop_words)
     match_next_ids = next_conn_skip_stop_words(match_sentence, match_path[-1][0], stop_words)
 
@@ -580,18 +583,23 @@ def rec_conn_get_common_paths(sentence, match_sentence, sentence_path, match_pat
     # form dictionary where each word has locs and the number of gaps needed to reach that loc
     sentence_next_words = {}
     for word_id in sentence_next_ids:
+        if word_id is None: continue
         word = sentence['words'][word_id]['word'].lower()
         try: sentence_next_words[word].add((word_id,0))
         except: sentence_next_words[word] = {(word_id,0)}
 
     for word_id in sentence_next_next_ids:
+        if word_id is None: continue
         word = sentence['words'][word_id]['word'].lower()
         try: sentence_next_words[word].add((word_id,1))
         except: sentence_next_words[word] = {(word_id,1)}
 
     match_next_words = {}
     for word_id in match_next_ids:
-        word = sentence['words'][word_id]['word'].lower()
+        if word_id is None:
+            paths.add((tuple(sentence_path), tuple(match_path)))
+            continue
+        word = match_sentence['words'][word_id]['word'].lower()
         try: match_next_words[word].add((word_id,0))
         except: match_next_words[word] = {(word_id,0)}
 
@@ -606,10 +614,8 @@ def rec_conn_get_common_paths(sentence, match_sentence, sentence_path, match_pat
     for word in next_words:
         next_ids.update(it.product(sentence_next_words[word], match_next_words[word]))
 
-    paths = set()
     for sentence_next_id, match_next_id in next_ids:
-        if match_next_id[0] is None: paths.add((tuple(sentence_path), tuple(match_path)))
-        else: paths.update(rec_conn_get_common_paths(sentence, match_sentence, sentence_path+[sentence_next_id], match_path+[match_next_id], stop_words))
+        paths.update(rec_conn_get_common_paths(sentence, match_sentence, sentence_path+[sentence_next_id], match_path+[match_next_id], stop_words))
 
     return paths
 
