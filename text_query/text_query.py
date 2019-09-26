@@ -61,7 +61,7 @@ def handle_sentence(s, nlp, stop_words={'of', 'type', 'with', 'and', 'the', 'or'
                           'tag': w[1]} for j, w in enumerate(words)}
 
         ids = sorted(list(word_index.keys()))
-        conn = {None: ids[0]}
+        conn = {None: {ids[0]}}
         for j in range(1,len(ids)):
             try: conn[ids[j-1]].add(ids[j])
             except: conn[ids[j-1]] = {ids[j]}
