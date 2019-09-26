@@ -61,10 +61,11 @@ def handle_sentence(s, nlp, stop_words={'of', 'type', 'with', 'and', 'the', 'or'
                           'tag': w[1]} for j, w in enumerate(words)}
 
         ids = sorted(list(word_index.keys()))
-        conn = {}
+        conn = {None: ids[0]}
         for j in range(1,len(ids)):
             try: conn[ids[j-1]].add(ids[j])
             except: conn[ids[j-1]] = {ids[j]}
+        finally: conn[ids[j]] = {None}
 
         sentences[i] = {'string': " ".join(s), 'words': word_index, 'conn': conn}
     return sentences
@@ -137,11 +138,11 @@ def rec_conn_gen_kmers(sentence, kmer, n, stop_words):
     if not kmer[-1] in conn.keys(): return set()
     results = set()
     for conn_id in next_conn_skip_stop_words(sentence, kmer[-1], stop_words):
+        if conn_id is None: continue
         results.update(rec_conn_gen_kmers(sentence, kmer + [conn_id], n, stop_words))
     return results
 
 def conn_gen_kmers(sentence, n, stop_words={'of', 'type', 'with', 'and', 'the', 'or', 'due', 'in', 'to', 'by', 'as', 'a', 'an', 'is', 'for', '.', ',', ':', ';', '?', '-', '(', ')', '/', '\\', '\'', '"', '\n', '\t', '\r'}):
-    
     kmers = set()
     for word_id in sentence['words'].keys():
         if sentence['words'][word_id]['word'].lower() in stop_words: continue
@@ -149,9 +150,10 @@ def conn_gen_kmers(sentence, n, stop_words={'of', 'type', 'with', 'and', 'the', 
     return kmers
 
 def rec_gen_sentences(conn, sentence):
-    if not sentence[-1] in conn: return {tuple(sentence)}
+    #if not sentence[-1] in conn: return {tuple(sentence)}
     sentences = set()
     for next_id in conn[sentence[-1]]:
+        if next_id is None: sentences.add(tuple(sentence))
         sentences.update(rec_gen_sentences(conn, sentence+[next_id]))
     return sentences
 
@@ -179,19 +181,23 @@ def expand_brackets(sentence):
     # add conns based on brackets
     # skip brackets
     for bracket_id in (open_brackets | close_brackets):
-        try: 
-            previous_ids = rev_conn[bracket_id]
-            next_ids = conn[bracket_id]
-        except: continue
+        # try: 
+        #     previous_ids = rev_conn[bracket_id]
+        #     next_ids = conn[bracket_id]
+        # except: continue
+        previous_ids = rev_conn[bracket_id]
+        next_ids = conn[bracket_id]
         for id1,id2 in it.product(previous_ids, next_ids):
             conn[id1].add(id2)
             
     # skip bracket contents
     for open_bracket, close_bracket in brackets:
-        try: 
-            previous_ids = rev_conn[open_bracket]
-            next_ids = conn[close_bracket]
-        except: continue
+        # try: 
+        #     previous_ids = rev_conn[open_bracket]
+        #     next_ids = conn[close_bracket]
+        # except: continue
+        previous_ids = rev_conn[open_bracket]
+        next_ids = conn[close_bracket]
         for id1,id2 in it.product(previous_ids, next_ids):
             conn[id1].add(id2)
     
@@ -217,8 +223,9 @@ def expand_slash(sentence):
             for i,w in enumerate(split_words):
                 new_words.append({'id': max_id+i+1, 'word': w, 'type': word['type'], 'tag': word['tag'], 'parent': {word['id']}}) # add the new word
                 # generate the new connections to that word (copy them from the original word)
-                try: conn[max_id+i+1] = set(conn[word['id']])
-                except: pass
+                # try: conn[max_id+i+1] = set(conn[word['id']])
+                # except: pass
+                conn[max_id+i+1] = set(conn[word['id']])
                 if word['id'] in rev_conn:
                     for word_id in rev_conn[word['id']]:
                         conn[word_id].add(max_id+i+1)
@@ -254,8 +261,9 @@ def expand_hyphen(sentence):
                 for word_id in rev_conn[word['id']]:
                     conn[word_id].add(max_id+1)
             
-            try: conn[max_id+len(split_words)] = set(conn[word['id']]) # add end connections
-            except: pass
+            # try: conn[max_id+len(split_words)] = set(conn[word['id']]) # add end connections
+            # except: pass
+            conn[max_id+len(split_words)] = set(conn[word['id']]) # add end connections
             
             # add inbetween connections
             for i in range(1,len(split_words)):
@@ -270,10 +278,13 @@ def expand_hyphen(sentence):
 
 def expand_lists(sentence):
     conn = sentence['conn']
-    try: start_id = min(conn.keys())
-    except: return sentence
-    
-    sentences_ids = rec_gen_sentences(conn, [start_id])
+    start_ids = conn[None]
+
+    sentences_ids = {}
+    for start_id in start_ids:
+        sentences_ids.update(rec_gen_sentences(conn, [start_id]))
+
+    # detect lists in each of these sentences, and make the nessesary adjustments
     for sentence_ids in sentences_ids:
         tags = [f"{i}{sentence['words'][i]['tag']}" for i in sentence_ids]
         s_pos_map = {word_id:i for i,word_id in enumerate(sentence_ids)}
@@ -374,82 +385,69 @@ def all_word_query(sentence, matches):
                 match_copy['sentence'] = match_sentence
                 yield match_copy
 
-def rec_matching_word_paths(word_ids, word_next_ids, word_prev_ids, path):
-    if not path[-1]['id'] in word_next_ids.keys(): return [path]
-
-    paths = [path]
-    for next_id in word_next_ids[path[-1]['id']]:
-        if next_id in word_ids:
-            paths += rec_matching_word_paths(word_ids, word_next_ids, word_prev_ids, path+[{'id': next_id, 'gap': 0}])
-        if next_id in word_prev_ids.keys():
-            for next_next_id in word_prev_ids[next_id]:
-                paths += rec_matching_word_paths(word_ids, word_next_ids, word_prev_ids, path+[{'id': next_next_id, 'gap': 1}])
-        
-    return paths
-
-def loc_based_query(sentences):
-    stop_words={'of', 'type', 'with', 'and', 'the', 'or', 'due', 'in', 'to', 'by', 'as', 'a', 'an', 'is', 'for', '.', ',', ':', ';', '?', '-', '(', ')', '/', '\\', '\'', '"', '\n', '\t', '\r'}
+# def loc_based_query(sentences):
+#     stop_words={'of', 'type', 'with', 'and', 'the', 'or', 'due', 'in', 'to', 'by', 'as', 'a', 'an', 'is', 'for', '.', ',', ':', ';', '?', '-', '(', ')', '/', '\\', '\'', '"', '\n', '\t', '\r'}
     
-    very_good_matches = {}
-    for loc, sentence in sentences.items():
-        loc_good_matches = []
+#     very_good_matches = {}
+#     for loc, sentence in sentences.items():
+#         loc_good_matches = []
         
-        conn = sentence['conn']
-        rev_conn = gen_rev_conn(conn)
-        words = sentence['words']
+#         conn = sentence['conn']
+#         rev_conn = gen_rev_conn(conn)
+#         words = sentence['words']
         
-        for match_id, match_term in sentence['matches']:
-            query_list = [w for w in match_term if not w.lower() in stop_words]
-            query = set(query_list)
-            matching_words = [w for w in words.values() if w['word'].lower() in query]
-            if len(matching_words) == 0: continue
+#         for match_id, match_term in sentence['matches']:
+#             query_list = [w for w in match_term if not w.lower() in stop_words]
+#             query = set(query_list)
+#             matching_words = [w for w in words.values() if w['word'].lower() in query]
+#             if len(matching_words) == 0: continue
             
-            # used to allow for gaps
-            word_next_ids = {}
-            word_prev_ids = {}
-            for w in matching_words:
-                next_ids = next_conn_skip_stop_words(sentence, w['id'], stop_words)
-                if len(next_ids) : word_next_ids[w['id']] = next_ids
-                for prev_id in next_rev_conn_skip_stop_words(sentence, rev_conn, w['id'], stop_words):
-                    try: word_prev_ids[prev_id].add(w['id'])
-                    except: word_prev_ids[prev_id] = {w['id']}
+#             # used to allow for gaps
+#             word_next_ids = {}
+#             word_prev_ids = {}
+#             for w in matching_words:
+#                 next_ids = next_conn_skip_stop_words(sentence, w['id'], stop_words)
+#                 if len(next_ids) : word_next_ids[w['id']] = next_ids
+#                 for prev_id in next_rev_conn_skip_stop_words(sentence, rev_conn, w['id'], stop_words):
+#                     try: word_prev_ids[prev_id].add(w['id'])
+#                     except: word_prev_ids[prev_id] = {w['id']}
             
-            paths = []
-            used_ids = set()
-            for start_id in {w['id'] for w in matching_words}:
-                if start_id in used_ids: continue
-                new_paths = rec_matching_word_paths({w['id'] for w in matching_words}, word_next_ids, word_prev_ids, [{'id': start_id, 'gap': 0}])
-                for p in new_paths:
-                    used_ids.update({i['id'] for i in p})
-                paths += new_paths
+#             paths = []
+#             used_ids = set()
+#             for start_id in {w['id'] for w in matching_words}:
+#                 if start_id in used_ids: continue
+#                 new_paths = rec_matching_word_paths({w['id'] for w in matching_words}, word_next_ids, word_prev_ids, [{'id': start_id, 'gap': 0}])
+#                 for p in new_paths:
+#                     used_ids.update({i['id'] for i in p})
+#                 paths += new_paths
             
-            matching_word_words = {w['word'].lower() for w in matching_words}
-            good_locs = set()
-            k = len(match_term)
-            for path in paths:
-                path_words = {words[p['id']]['word'].lower() for p in path}
-                if len(matching_word_words - path_words) > 0: continue
+#             matching_word_words = {w['word'].lower() for w in matching_words}
+#             good_locs = set()
+#             k = len(match_term)
+#             for path in paths:
+#                 path_words = {words[p['id']]['word'].lower() for p in path}
+#                 if len(matching_word_words - path_words) > 0: continue
                 
-                # kmers of match length
-                path_kmers = generate_ordered_kmers(path, k)
-                for kmer in path_kmers:
-                    kmer_words = {words[w['id']]['word'].lower() for w in kmer}
-                    if len(matching_word_words - kmer_words) > 0: continue
+#                 # kmers of match length
+#                 path_kmers = generate_ordered_kmers(path, k)
+#                 for kmer in path_kmers:
+#                     kmer_words = {words[w['id']]['word'].lower() for w in kmer}
+#                     if len(matching_word_words - kmer_words) > 0: continue
                         
-                    gap_sum = sum([w['gap'] for w in kmer])
-                    if gap_sum > len(query_list) / 3: continue
+#                     gap_sum = sum([w['gap'] for w in kmer])
+#                     if gap_sum > len(query_list) / 3: continue
                         
-                    good_locs.add(tuple(sorted([w['id'] for w in kmer])))
+#                     good_locs.add(tuple(sorted([w['id'] for w in kmer])))
             
-            if len(good_locs)>0:
-                loc_good_matches.append({'match': (match_id, match_term), 'locs': list(good_locs)})     
+#             if len(good_locs)>0:
+#                 loc_good_matches.append({'match': (match_id, match_term), 'locs': list(good_locs)})     
         
-        if len(loc_good_matches)>0:
-            sentence_copy = sentence.copy()
-            sentence_copy['matches'] = loc_good_matches.copy()
-            very_good_matches[loc] = sentence_copy.copy()
+#         if len(loc_good_matches)>0:
+#             sentence_copy = sentence.copy()
+#             sentence_copy['matches'] = loc_good_matches.copy()
+#             very_good_matches[loc] = sentence_copy.copy()
         
-    return very_good_matches
+#     return very_good_matches
 
 def expand_sentence(original_sentence):
     # add other conns based on parentheses, hyphens, slashes and lists
@@ -517,76 +515,94 @@ def conn_sentence_all_word_query(sentence, matches):
         match_words = {v['word'].lower() for k,v in match['sentence']['words'].items()}
         if len(match_words - sentence_words) == 0: yield match
 
-def conn_sentence_loc_query(sentence, matches):
-    stop_words={'of', 'type', 'with', 'and', 'the', 'or', 'due', 'in', 'to', 'by', 'as', 'a', 'an', 'is', 'for', '.', ',', ':', ';', '?', '-', '(', ')', '/', '\\', '\'', '"', '\n', '\t', '\r'}
-
+def conn_sentence_loc_query(sentence, matches, stop_words={'of', 'type', 'with', 'and', 'the', 'or', 'due', 'in', 'to', 'by', 'as', 'a', 'an', 'is', 'for', '.', ',', ':', ';', '?', '-', '(', ')', '/', '\\', '\'', '"', '\n', '\t', '\r'}):
+    sentence['rev_conn'] = gen_rev_conn(sentence['conn'])
     for match in matches:
-        paths = conn_sentence_match_paths(sentence, match['sentence'], stop_words)
-        paths_words = {}
-        paths_conn = {}
-        for path in paths:
+        match['sentence']['rev_conn'] = gen_rev_conn(match['sentence']['conn'])
+
+        # get all matching paths
+        paths = rec_conn_get_common_paths(sentence, match['sentence'], [(None,0)], [(None,0)], stop_words)
+        paths = {p[0] for p in paths}
+
+        good_paths = set()
+        for path in sentence_paths:
+            path_ids = {p[0] for p in path}
+            
             # filter out paths that have too many gaps
-            gap_sum = sum([w['gap'] for w in path])
-            if gap_sum > len(match['sentence']['words']) / 3: continue
-            
-            # build new connected-sentence out of the paths
-            for i in range(0,len(path)):
-                path_id = path[i]['id']
-                paths_words[path_id] = sentence['words'][path_id]
-                try: next_path_id = path[i+1]['id']
-                except: continue
+            gap_sum = sum([p[1] for p in path])
+            if gap_sum/len(path_ids) < 3: 
+                good_paths.add(tuple(path_ids))
 
-                try: paths_conn[path_id].add(next_path_id)
-                except: paths_conn[path_id] = {next_path_id}
-                #paths_conn[next_path_id] = set()
-                paths_words[next_path_id] = sentence['words'][next_path_id]
-            
-        path_sentence = {'words': paths_words, 'conn': paths_conn}
+        match['paths'] = good_paths.copy()
+        yield match
+
+def rec_conn_get_common_paths(sentence, match_sentence, sentence_path, match_path, stop_words):
+    sentence_next_ids = next_conn_skip_stop_words(sentence, sentence_path[-1], stop_words)
+    match_next_ids = next_conn_skip_stop_words(match_sentence, match_path[-1], stop_words)
+
+    # allow for gaps
+    sentence_next_next_ids = set()
+    for sentence_next_id in sentence_next_ids:
+        if sentence_next_id is None: continue
+        sentence_next_next_ids.update(next_conn_skip_stop_words(sentence, sentence_next_id, stop_words))
+
+    match_next_next_ids = set()
+    for match_next_id in match_next_ids:
+        if match_next_id is None: continue
+        match_next_next_ids.update(next_conn_skip_stop_words(match_sentence, match_next_id, stop_words))
+
+    sentence_next_words = {}
+    for word_id in sentence_next_ids:
+        word = sentence['words'][i]['word'].lower()
+        try: sentence_next_words[word].add((i,0))
+        except: sentence_next_words[word] = {(i,0)}
+
+    for word_id in sentence_next_next_ids:
+        word = sentence['words'][i]['word'].lower()
+        try: sentence_next_words[word].add((i,1))
+        except: sentence_next_words[word] = {(i,1)}
+
+    match_next_words = {}
+    for word_id in match_next_ids:
+        word = sentence['words'][i]['word'].lower()
+        try: match_next_words[word].add((i,0))
+        except: match_next_words[word] = {(i,0)}
+
+    match_next_words = {}
+    for word_id in match_next_next_ids:
+        word = sentence['words'][i]['word'].lower()
+        try: match_next_words[word].add((i,1))
+        except: match_next_words[word] = {(i,1)}
+
+    next_words = set(match_next_words.keys()) & set(sentence_next_words.keys())
+
+    # next_ids = set()
+    # for word in next_words:
+    #     next_ids.update({(a[0],b[0]) for a,b in it.product(sentence_next_words[word], match_next_words[word])})
+
+    next_ids = it.product(sentence_next_words[word], match_next_words[word])
+    paths = set()
+    for sentence_next_id, match_next_id in next_ids:
+        new_sentence_path = sentence_path+[sentence_next_id]
+        new_match_path = match_path+[match_next_id]
+
+        if match_next_id[0] is None: paths.add((tuple(new_sentence_path), tuple(new_match_path)))
+        else: paths.update(rec_conn_get_common_paths(sentence, match_sentence, new_sentence_path, new_match_path, stop_words))
+
+    return paths
+
+def rec_matching_word_paths(word_ids, word_next_ids, word_prev_ids, path):
+    if not path[-1]['id'] in word_next_ids.keys(): return [path]
+
+    paths = [path]
+    for next_id in word_next_ids[path[-1]['id']]:
+        if next_id in word_ids:
+            paths += rec_matching_word_paths(word_ids, word_next_ids, word_prev_ids, path+[{'id': next_id, 'gap': 0}])
+        if next_id in word_prev_ids.keys():
+            for next_next_id in word_prev_ids[next_id]:
+                paths += rec_matching_word_paths(word_ids, word_next_ids, word_prev_ids, path+[{'id': next_next_id, 'gap': 1}])
         
-        # verify the paths sentence by reversing the previous section and finding matches to the path in the original sentence. 
-        # If there is one valid reverse path then the path is verified
-        inv_paths = conn_sentence_match_paths(match['sentence'], path_sentence, stop_words)
-        for path in inv_paths:
-            gap_sum = sum([w['gap'] for w in path])
-            if gap_sum > len(match['sentence']['words']) / 3: 
-                continue
-            else:
-                match['path'] = path_sentence # contains the location of the match
-                yield match
-                break
-
-def conn_sentence_match_paths(sentence, match_sentence, stop_words): # get paths through sentence between match_sentence words
-    # get all instances of match words in sentence
-    match_words = {w['word'].lower() for k,w in match_sentence['words'].items() if not w['word'].lower() in stop_words}
-    matching_words = [w for k,w in sentence['words'].items() if w['word'].lower() in match_words] # sentence words that are in 'match'
-
-    rev_conn = gen_rev_conn(sentence['conn'])
-    
-    # generate routes between these match words
-    word_next_ids = {}
-    word_prev_ids = {}
-    for w in matching_words:
-        next_ids = next_conn_skip_stop_words(sentence, w['id'], stop_words)
-        if len(next_ids): word_next_ids[w['id']] = next_ids
-        for prev_id in next_rev_conn_skip_stop_words(sentence, rev_conn, w['id'], stop_words):
-            try: word_prev_ids[prev_id].add(w['id'])
-            except: word_prev_ids[prev_id] = {w['id']}
-
-    paths = []
-    used_ids = set()
-    for start_id in {w['id'] for w in matching_words}:
-        if start_id in used_ids: continue
-        new_paths = rec_matching_word_paths({w['id'] for w in matching_words}, word_next_ids, word_prev_ids, [{'id': start_id, 'gap': 0}])
-        for p in new_paths:
-            used_ids.update({i['id'] for i in p})
-        paths += new_paths
-    
-    # filter out paths that miss out words
-    matching_word_words = {w['word'].lower() for w in matching_words}
-    for path in paths:
-        path_words = {sentence['words'][w['id']]['word'].lower() for w in path}
-        if len(matching_word_words - path_words) > 0: continue
-        else: yield path
+    return paths
 
 def expand_index(sentence, indexes):
     # find matches from the thesaurus indexes
