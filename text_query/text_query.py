@@ -289,7 +289,7 @@ def expand_lists(sentence):
     conn = sentence['conn']
     start_ids = conn[None]
 
-    sentences_ids = {}
+    sentences_ids = set()
     for start_id in start_ids:
         sentences_ids.update(rec_gen_sentences(conn, [start_id]))
 
