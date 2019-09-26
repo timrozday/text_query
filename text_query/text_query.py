@@ -118,7 +118,9 @@ def next_conn_skip_stop_words(sentence, start_id, stop_words):
     next_ids = set()
     if not start_id in sentence['conn']: return set()
     for next_id in sentence['conn'][start_id]:
-        if next_id is None: next_ids.add(next_id)
+        if next_id is None: 
+            next_ids.add(next_id)
+            continue
         if sentence['words'][next_id]['word'].lower() in stop_words:
             next_ids.update(next_conn_skip_stop_words(sentence, next_id, stop_words))
         else: next_ids.add(next_id)
@@ -128,7 +130,9 @@ def next_rev_conn_skip_stop_words(sentence, rev_conn, start_id, stop_words):
     next_ids = set()
     if not start_id in rev_conn: return set()
     for next_id in rev_conn[start_id]:
-        if next_id is None: next_ids.add(next_id)
+        if next_id is None: 
+            next_ids.add(next_id)
+            continue
         if sentence['words'][next_id]['word'].lower() in stop_words:
             next_ids.update(next_rev_conn_skip_stop_words(sentence, rev_conn, next_id, stop_words))
         else: next_ids.add(next_id)
