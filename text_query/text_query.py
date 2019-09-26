@@ -582,7 +582,9 @@ def rec_conn_get_common_paths(sentence, match_sentence, sentence_path, match_pat
 
     # generate list of words that both sentence and match can move to, and generate all the word_ids that fascilitate this transition to the next words
     next_words = set(match_next_words.keys()) & set(sentence_next_words.keys())
-    next_ids = it.product(sentence_next_words[word], match_next_words[word])
+    next_ids = set()
+    for word in next_words:
+        next_ids.update(it.product(sentence_next_words[word], match_next_words[word]))
 
     paths = set()
     for sentence_next_id, match_next_id in next_ids:
