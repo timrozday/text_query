@@ -531,7 +531,7 @@ def conn_sentence_loc_query(sentence, matches, stop_words={'of', 'type', 'with',
         paths = {p[0] for p in paths}
 
         good_paths = set()
-        for path in sentence_paths:
+        for path in paths:
             path_ids = {p[0] for p in path}
 
             # filter out paths that have too many gaps
