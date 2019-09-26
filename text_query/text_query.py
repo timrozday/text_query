@@ -65,7 +65,7 @@ def handle_sentence(s, nlp, stop_words={'of', 'type', 'with', 'and', 'the', 'or'
         for j in range(1,len(ids)):
             try: conn[ids[j-1]].add(ids[j])
             except: conn[ids[j-1]] = {ids[j]}
-        finally: conn[ids[j]] = {None}
+        else: conn[ids[j]] = {None}
 
         sentences[i] = {'string': " ".join(s), 'words': word_index, 'conn': conn}
     return sentences
