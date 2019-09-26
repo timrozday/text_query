@@ -558,7 +558,7 @@ def conn_sentence_loc_query(sentence, matches, stop_words={'of', 'type', 'with',
 
             # filter out paths that have too many gaps
             gap_sum = sum([p[1] for p in path])
-            if len(path_ids)/gap_sum < 3: 
+            if gap_sum <= len(path_ids)/3: 
                 good_paths.add(tuple(path_ids))
 
         match['paths'] = good_paths.copy()
