@@ -294,7 +294,7 @@ def expand_lists(sentence):
         sentences_ids.update(rec_gen_sentences(conn, [start_id]))
 
     # detect lists in each of these sentences, and make the nessesary adjustments
-    for sentence_ids in sentences_ids:
+    for sentence_id in sentences_ids:
         tags = [f"{i}{sentence['words'][i]['tag']}" for i in sentence_ids]
         s_pos_map = {word_id:i for i,word_id in enumerate(sentence_ids)}
         text_lists = re.findall('((?:(?:\d+(?:JJ|DT|NN|NNS|\?))+\d+(?:,|CC))+(?:\d+(?:JJ|DT|NN|NNS|\?))+)', "".join(tags)) # find all the sentences
