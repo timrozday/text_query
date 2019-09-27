@@ -412,7 +412,6 @@ def loc_query(sentence, matches, stop_words={'of', 'type', 'with', 'and', 'the',
 
         sentence_start_words = {}
         for match_start_word in match_start_words.keys():
-            print(match_start_word)
             sentence_start_words[match_start_word] = {k for k,v in sentence['words'].items() if v['word'].lower() == match_start_word}
 
         start_ids = set()
