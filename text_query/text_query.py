@@ -551,7 +551,7 @@ def expand_thesaurus(sentence, matches, query_f, f_args):
 
         match_path_ids = set(match['path']['words'].keys())  # for the added word parents 
 
-        names = query_f(match['onto_id'], *args)
+        names = query_f(match['onto_id'], *f_args)
 
         for name in names:
             # add words (making sure not to add duplicate words <-- difficult, let's not do that for now)
