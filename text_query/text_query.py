@@ -386,8 +386,8 @@ def kmer_query(sentence, query_f, f_args, stop_words={'of', 'type', 'with', 'and
     for n in range(1,4):
         for kmer in kmers[n]:
             # query the database here with the kmer
-            r = query_f(kmer, *f_args)
-            for m in r.values(): yield m
+            matches = query_f(kmer, *f_args)
+            for m in matches: yield m
 
 def all_word_query(sentence, matches, stop_words={'of', 'type', 'with', 'and', 'the', 'or', 'due', 'in', 'to', 'by', 'as', 'a', 'an', 'is', 'for', '.', ',', ':', ';', '?', '-', '(', ')', '/', '\\', '\'', '"', '\n', '\t', '\r'}):
     sentence_words = {v['word'].lower() for k,v in sentence['words'].items()}
@@ -608,4 +608,3 @@ def expand_index(sentence, kmer_indexes, names_indexes):
     expanded_sentence = expand_thesaurus(sentence, matches, query_names_indexes, [names_indexes])
     
     return expanded_sentence
-    
