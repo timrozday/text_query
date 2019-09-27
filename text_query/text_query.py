@@ -551,6 +551,9 @@ def expand_thesaurus(sentence, matches, query_f, f_args, stop_words={'of', 'type
             match_start_ids.add(p[0])
             match_end_ids.add(p[-1])
 
+        match_start_ids = match_start_ids - {None}
+        match_end_ids = match_end_ids - {None}
+
         match_path_words = {sentence['words'][i]['word'].lower() for i in match_path_ids if not sentence['words'][i]['word'].lower() in stop_words}
         
         names = query_f(match['code'], *f_args)
@@ -583,8 +586,8 @@ def expand_thesaurus(sentence, matches, query_f, f_args, stop_words={'of', 'type
 
         # add conn from name
         name_rev_conn = gen_rev_conn(name['sentence']['conn'])
-        name_start_ids = name['sentence']['conn'][None]
-        name_end_ids = name_rev_conn[None]
+        name_start_ids = name['sentence']['conn'][None] - {None}
+        name_end_ids = name_rev_conn[None] - {None}
         
         for k,vs in name['sentence']['conn'].items():
             if k is None:  # handle beginning of match
