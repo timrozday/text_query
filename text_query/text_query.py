@@ -354,110 +354,6 @@ def expand_lists(sentence):
     sentence['conn'] = conn
     return sentence
 
-
-def query_index_db(kmer, db_conn):
-    kmer_str = re.sub('\'', '\'\'', repr(kmer)) # handle quotes
-    results = db_conn.execute(f"select st.onto_id, st.source, st.string, st.expanded_sentences from (select * from (select * from kmers where kmer='{kmer_str}') km left join kmer_to_string on km.id=kmer_to_string.kmer_id) ks inner join (select * from strings) st on ks.string_id=st.id")
-    pretty_results = {(source, onto_id): {'source': source, 'onto_id': onto_id, 'string': string, 'sentence': eval(sentence)} for onto_id, source, string, sentence in results}
-    return pretty_results
-
-def kmer_query(sentence, db_conn):
-    # generate kmers from conn
-    conn = sentence['conn']
-    word_index = sentence['words']
-    kmers = {}
-    for n in range(1,4):
-        kmers[n] = set()
-        kmer_ids = conn_gen_kmers(sentence, n, stop_words={'of', 'type', 'with', 'and', 'the', 'or', 'due', 'in', 'to', 'by', 'as', 'a', 'an', 'is', 'for', '.', ',', ':', ';', '?', '-', '(', ')', '/', '\\', '\'', '"', '\n', '\t', '\r'})
-        for kmer_id in kmer_ids:
-            kmer = tuple(sorted([word_index[k]['word'].lower() for k in kmer_id]))
-            kmers[n].add(kmer)
-
-    # get matches
-    matches = []
-    for n in range(1,4):
-        for kmer in kmers[n]:
-            # query the database here with the kmer
-            r = query_index_db(kmer, db_conn)
-            
-            for m in r.values(): yield m
-
-def all_word_query(sentence, matches):
-    stop_words={'of', 'type', 'with', 'and', 'the', 'or', 'due', 'in', 'to', 'by', 'as', 'a', 'an', 'is', 'for', '.', ',', ':', ';', '?', '-', '(', ')', '/', '\\', '\'', '"', '\n', '\t', '\r'}
-    
-    sentence_words = {v['word'].lower() for k,v in sentence['words'].items()}
-    for match in matches:
-        for match_sentence in match['sentence']:
-            match_words = {v['word'].lower() for k,v in match_sentence['words'].items() if v['word'].lower() not in stop_words}
-            if len(match_words - sentence_words) == 0:
-                match_copy = match.copy()
-                match_copy['sentence'] = match_sentence
-                yield match_copy
-
-# def loc_based_query(sentences):
-#     stop_words={'of', 'type', 'with', 'and', 'the', 'or', 'due', 'in', 'to', 'by', 'as', 'a', 'an', 'is', 'for', '.', ',', ':', ';', '?', '-', '(', ')', '/', '\\', '\'', '"', '\n', '\t', '\r'}
-    
-#     very_good_matches = {}
-#     for loc, sentence in sentences.items():
-#         loc_good_matches = []
-        
-#         conn = sentence['conn']
-#         rev_conn = gen_rev_conn(conn)
-#         words = sentence['words']
-        
-#         for match_id, match_term in sentence['matches']:
-#             query_list = [w for w in match_term if not w.lower() in stop_words]
-#             query = set(query_list)
-#             matching_words = [w for w in words.values() if w['word'].lower() in query]
-#             if len(matching_words) == 0: continue
-            
-#             # used to allow for gaps
-#             word_next_ids = {}
-#             word_prev_ids = {}
-#             for w in matching_words:
-#                 next_ids = next_conn_skip_stop_words(sentence, w['id'], stop_words)
-#                 if len(next_ids) : word_next_ids[w['id']] = next_ids
-#                 for prev_id in next_rev_conn_skip_stop_words(sentence, rev_conn, w['id'], stop_words):
-#                     try: word_prev_ids[prev_id].add(w['id'])
-#                     except: word_prev_ids[prev_id] = {w['id']}
-            
-#             paths = []
-#             used_ids = set()
-#             for start_id in {w['id'] for w in matching_words}:
-#                 if start_id in used_ids: continue
-#                 new_paths = rec_matching_word_paths({w['id'] for w in matching_words}, word_next_ids, word_prev_ids, [{'id': start_id, 'gap': 0}])
-#                 for p in new_paths:
-#                     used_ids.update({i['id'] for i in p})
-#                 paths += new_paths
-            
-#             matching_word_words = {w['word'].lower() for w in matching_words}
-#             good_locs = set()
-#             k = len(match_term)
-#             for path in paths:
-#                 path_words = {words[p['id']]['word'].lower() for p in path}
-#                 if len(matching_word_words - path_words) > 0: continue
-                
-#                 # kmers of match length
-#                 path_kmers = generate_ordered_kmers(path, k)
-#                 for kmer in path_kmers:
-#                     kmer_words = {words[w['id']]['word'].lower() for w in kmer}
-#                     if len(matching_word_words - kmer_words) > 0: continue
-                        
-#                     gap_sum = sum([w['gap'] for w in kmer])
-#                     if gap_sum > len(query_list) / 3: continue
-                        
-#                     good_locs.add(tuple(sorted([w['id'] for w in kmer])))
-            
-#             if len(good_locs)>0:
-#                 loc_good_matches.append({'match': (match_id, match_term), 'locs': list(good_locs)})     
-        
-#         if len(loc_good_matches)>0:
-#             sentence_copy = sentence.copy()
-#             sentence_copy['matches'] = loc_good_matches.copy()
-#             very_good_matches[loc] = sentence_copy.copy()
-        
-#     return very_good_matches
-
 def expand_sentence(original_sentence):
     # add other conns based on parentheses, hyphens, slashes and lists
     sentence = expand_lists(original_sentence)
@@ -467,64 +363,39 @@ def expand_sentence(original_sentence):
 
     return sentence
 
-def query_sentence(sentence, db_conn):
-    # do querying
-    matches = kmer_query(sentence, db_conn)            
-    matches = all_word_query(sentence, matches)
-    matches = conn_sentence_loc_query(sentence, matches)
-    matches = list(matches)
 
-    return matches
+def query_index_db(kmer, db_conn):
+    kmer_str = re.sub('\'', '\'\'', repr(kmer)) # handle quotes
+    results = db_conn.execute(f"select st.onto_id, st.source, st.string, st.expanded_sentences from (select * from (select * from kmers where kmer='{kmer_str}') km left join kmer_to_string on km.id=kmer_to_string.kmer_id) ks inner join (select * from strings) st on ks.string_id=st.id")
+    for onto_id, source, string, sentence in results:
+        yield {'source': source, 'onto_id': onto_id, 'string': string, 'sentence': eval(sentence)[0]}
 
-def rec_query(node, loc, db_conn):
-    results = {}
-    if node['tag'] == "string":
-        for i,sentence in enumerate(node['nodes']):
-            new_loc = loc+[i]
-            expanded_sentence = expand_sentence(sentence)
-            matches = query_sentence(expanded_sentence, db_conn)
-
-            if len(matches)>0:
-                results[tuple(new_loc)] = {'loc': tuple(new_loc), 'sentence': sentence, 'matches': matches}
-            
-    else:
-        for i,n in enumerate(node['nodes']):
-            new_loc = loc+[i]
-            rec_results = rec_query(n, new_loc, db_conn)
-            for k,v in rec_results.items():
-                results[k] = v
-    
-    return results
-
-def onto_index_db_query(sections, db_conn):
-    all_results = []
-    for i, section in enumerate(sections):
-        if not section is None: 
-            results = rec_query(section, [i], db_conn)
-            all_results.append(results)
-    return all_results
-
-
-def conn_sentence_kmer_query(sentence, indexes):
-    used_codes = set()
+def kmer_query(sentence, query_f, f_args, stop_words={'of', 'type', 'with', 'and', 'the', 'or', 'due', 'in', 'to', 'by', 'as', 'a', 'an', 'is', 'for', '.', ',', ':', ';', '?', '-', '(', ')', '/', '\\', '\'', '"', '\n', '\t', '\r'}):
+    # generate kmers from conn
+    conn = sentence['conn']
+    word_index = sentence['words']
+    kmers = {}
     for n in range(1,4):
-        kmers = conn_gen_kmers(sentence, n)
-        for kmer in kmers:
-            kmer = tuple(sorted([sentence['words'][i]['word'].lower() for i in kmer]))
-            for index in indexes:
-                if kmer in index[n].keys():
-                    for match in [{'code': k, 'sentence': v} for k,vs in index[n][kmer].items() for v in vs]:
-                        if not match['code'] in used_codes:
-                            used_codes.add(match['code'])
-                            yield match
+        kmers[n] = set()
+        kmer_ids = conn_gen_kmers(sentence, n, stop_words=stop_words)
+        for kmer_id in kmer_ids:
+            kmer = tuple(sorted([word_index[k]['word'].lower() for k in kmer_id]))
+            kmers[n].add(kmer)
 
-def conn_sentence_all_word_query(sentence, matches):
+    # get matches
+    for n in range(1,4):
+        for kmer in kmers[n]:
+            # query the database here with the kmer
+            r = query_f(kmer, *f_args)
+            for m in r.values(): yield m
+
+def all_word_query(sentence, matches, stop_words={'of', 'type', 'with', 'and', 'the', 'or', 'due', 'in', 'to', 'by', 'as', 'a', 'an', 'is', 'for', '.', ',', ':', ';', '?', '-', '(', ')', '/', '\\', '\'', '"', '\n', '\t', '\r'}):
     sentence_words = {v['word'].lower() for k,v in sentence['words'].items()}
     for match in matches:
-        match_words = {v['word'].lower() for k,v in match['sentence']['words'].items()}
+        match_words = {v['word'].lower() for k,v in match['sentence']['words'].items() if v['word'].lower() not in stop_words}
         if len(match_words - sentence_words) == 0: yield match
 
-def conn_sentence_loc_query(sentence, matches, stop_words={'of', 'type', 'with', 'and', 'the', 'or', 'due', 'in', 'to', 'by', 'as', 'a', 'an', 'is', 'for', '.', ',', ':', ';', '?', '-', '(', ')', '/', '\\', '\'', '"', '\n', '\t', '\r'}):
+def loc_query(sentence, matches, stop_words={'of', 'type', 'with', 'and', 'the', 'or', 'due', 'in', 'to', 'by', 'as', 'a', 'an', 'is', 'for', '.', ',', ':', ';', '?', '-', '(', ')', '/', '\\', '\'', '"', '\n', '\t', '\r'}):
     sentence['rev_conn'] = gen_rev_conn(sentence['conn'])
     for match in matches:
         match['sentence']['rev_conn'] = gen_rev_conn(match['sentence']['conn'])
@@ -578,11 +449,6 @@ def rec_conn_get_common_paths(sentence, match_sentence, sentence_path, match_pat
         if sentence_next_id is None: continue
         sentence_next_next_ids.update(next_conn_skip_stop_words(sentence, sentence_next_id, stop_words))
 
-    # match_next_next_ids = set()
-    # for match_next_id in match_next_ids:
-    #     if match_next_id is None: continue
-    #     match_next_next_ids.update(next_conn_skip_stop_words(match_sentence, match_next_id, stop_words))
-
     # form dictionary where each word has locs and the number of gaps needed to reach that loc
     sentence_next_words = {}
     for word_id in sentence_next_ids:
@@ -606,11 +472,6 @@ def rec_conn_get_common_paths(sentence, match_sentence, sentence_path, match_pat
         try: match_next_words[word].add((word_id,0))
         except: match_next_words[word] = {(word_id,0)}
 
-    # for word_id in match_next_next_ids:
-    #     word = sentence['words'][word_id]['word'].lower()
-    #     try: match_next_words[word].add((word_id,1))
-    #     except: match_next_words[word] = {(word_id,1)}
-
     # generate list of words that both sentence and match can move to, and generate all the word_ids that fascilitate this transition to the next words
     next_words = set(match_next_words.keys()) & set(sentence_next_words.keys())
     next_ids = set()
@@ -622,28 +483,64 @@ def rec_conn_get_common_paths(sentence, match_sentence, sentence_path, match_pat
 
     return paths
 
-def rec_matching_word_paths(word_ids, word_next_ids, word_prev_ids, path):
-    if not path[-1]['id'] in word_next_ids.keys(): return [path]
 
-    paths = [path]
-    for next_id in word_next_ids[path[-1]['id']]:
-        if next_id in word_ids:
-            paths += rec_matching_word_paths(word_ids, word_next_ids, word_prev_ids, path+[{'id': next_id, 'gap': 0}])
-        if next_id in word_prev_ids.keys():
-            for next_next_id in word_prev_ids[next_id]:
-                paths += rec_matching_word_paths(word_ids, word_next_ids, word_prev_ids, path+[{'id': next_next_id, 'gap': 1}])
-        
-    return paths
 
-def expand_index(sentence, indexes):
-    # find matches from the thesaurus indexes
-    matches = conn_sentence_kmer_query(sentence, indexes)
-    matches = conn_sentence_all_word_query(sentence, matches)
-    matches = conn_sentence_loc_query(sentence, matches)
+def query_sentence(sentence, db_conn):
+    # do querying
+    matches = kmer_query(sentence, query_index_db, [db_conn])            
+    matches = all_word_query(sentence, matches)
+    matches = loc_query(sentence, matches)
+
+    return list(matches)
+
+def rec_query(node, loc, db_conn):
+    results = {}
+    if node['tag'] == "string":
+        for i,sentence in enumerate(node['nodes']):
+            new_loc = loc+[i]
+            expanded_sentence = expand_sentence(sentence)
+            matches = query_sentence(expanded_sentence, db_conn)
+
+            if len(matches)>0:
+                results[tuple(new_loc)] = {'loc': tuple(new_loc), 'sentence': sentence, 'matches': matches}
+            
+    else:
+        for i,n in enumerate(node['nodes']):
+            new_loc = loc+[i]
+            rec_results = rec_query(n, new_loc, db_conn)
+            for k,v in rec_results.items():
+                results[k] = v
     
-    return matches
+    return results
 
-def expand_thesaurus(matches, sentence, indexes):
+def onto_index_db_query(sections, db_conn):
+    all_results = []
+    for i, section in enumerate(sections):
+        if not section is None: 
+            results = rec_query(section, [i], db_conn)
+            all_results.append(results)
+    return all_results
+
+
+
+def query_thesauruses(kmer, indexes):
+    used_codes = set()
+    for index in indexes:
+        for n in range(1,4):
+            if kmer in index[n].keys():
+                for match in [{'code': k, 'sentence': v} for k,vs in index[n][kmer].items() for v in vs]:
+                    if not match['code'] in used_codes:
+                        used_codes.add(match['code'])
+                        yield match
+
+def query_names_indexes(onto_id, indexes):
+    for index in indexes:
+        try: 
+            names = index[match['code']]
+            for n in names: yield n
+        except: pass
+
+def expand_thesaurus(sentence, matches, query_f, f_args):
     for match in matches:
         # find start and end IDs
         match_conn = match['sentence']['conn']
@@ -654,10 +551,7 @@ def expand_thesaurus(matches, sentence, indexes):
 
         match_path_ids = set(match['path']['words'].keys())  # for the added word parents 
 
-        names = []
-        for index in indexes:
-            try: names += index[match['code']]
-            except: pass
+        names = query_f(match['onto_id'], *args)
 
         for name in names:
             # add words (making sure not to add duplicate words <-- difficult, let's not do that for now)
@@ -703,3 +597,15 @@ def expand_thesaurus(matches, sentence, indexes):
                         except: sentence['conn'][name_end_id] = sentence['conn'][match_end_id]
                         
     return sentence
+
+def expand_index(sentence, kmer_indexes, names_indexes):
+    # find matches from the thesaurus indexes
+    matches = kmer_query(sentence, query_thesauruses, [kmer_indexes], stop_words=set())
+    matches = all_word_query(sentence, matches, stop_words=set())
+    matches = loc_query(sentence, matches, stop_words=set())
+    
+    # substitute names from the matches into the sentence
+    expanded_sentence = expand_thesaurus(sentence, matches, query_names_indexes, [names_indexes])
+    
+    return expanded_sentence
+    
