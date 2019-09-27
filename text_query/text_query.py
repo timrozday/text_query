@@ -566,7 +566,7 @@ def expand_thesaurus(sentence, matches, query_f, f_args, stop_words={'of', 'type
     for name in match_names:
         name = eval(name)
         max_id = max(sentence['words'].keys())  # needs to be updated each time
-        sentence['rev_conn'] = tq.gen_rev_conn(sentence['conn'])  # needs to be updated each time
+        sentence['rev_conn'] = gen_rev_conn(sentence['conn'])  # needs to be updated each time
         
         name_to_sentence_map = {}
         
@@ -582,7 +582,7 @@ def expand_thesaurus(sentence, matches, query_f, f_args, stop_words={'of', 'type
             sentence['words'][new_id] = new_word
 
         # add conn from name
-        name_rev_conn = tq.gen_rev_conn(name['sentence']['conn'])
+        name_rev_conn = gen_rev_conn(name['sentence']['conn'])
         name_start_ids = name['sentence']['conn'][None]
         name_end_ids = name_rev_conn[None]
         
