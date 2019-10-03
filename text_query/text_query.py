@@ -89,7 +89,7 @@ def handle_sentence(s, nlp, stop_words={'of', 'type', 'with', 'and', 'the', 'or'
                                               'dep': parent_word['dep'],
                                               'pos': parent_word['pos'],
                                               'tag': parent_word['tag'],
-                                              'parent': lemma['parent_id']}
+                                              'parent': {lemma['parent_id']} }
             
             rev_conn = gen_rev_conn(conn)
             for j in rev_conn[lemma['parent_id']]:
