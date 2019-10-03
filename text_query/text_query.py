@@ -91,11 +91,11 @@ def handle_sentence(s, nlp, stop_words={'of', 'type', 'with', 'and', 'the', 'or'
                                               'pos': parent_word['pos'],
                                               'tag': parent_word['tag']}
             
-            rev_conn = tq.gen_rev_conn(conn)
+            rev_conn = gen_rev_conn(conn)
             for i in rev_conn[lemma['parent_id']]:
                 conn[i].add(k)
             
-            rev_conn = tq.gen_rev_conn(conn)
+            rev_conn = gen_rev_conn(conn)
             conn[k] = conn[lemma['parent_id']].copy()
             
         sentences[i] = {'string': sentence['string'], 'words': word_index, 'conn': conn}
