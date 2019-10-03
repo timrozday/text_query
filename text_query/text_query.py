@@ -21,11 +21,17 @@ def text_filter(s):
 # uses spaCy
 def split_tag_sentences(s, nlp):
     doc = nlp(s)
-    tagged_words = [(str(w), str(w.tag_)) for w in doc]
-    tagged_sents = []
+    doc_words = list(doc)
+    tagged_words = [{'word': str(w), 'tag': str(w.tag_), 'pos': str(w.pos_), 'lemma': str(w.lemma_), 'dep': str(w.dep_), 'idx': int(w.idx)} for w in doc_words]
+    sents = []
     for sent in doc.sents:
-        tagged_sents.append(tagged_words[sent.start:sent.end])
-    return tagged_sents
+        start_idx = tagged_words[sent.start]['idx']
+        try: end_idx = tagged_words[sent.end]['idx']-1
+        except: end_idx = len(s)
+        
+        sents.append({'sentence': tagged_words[sent.start:sent.end], 'string': s[start_idx:end_idx]})
+        
+    return sents
 
 def rec_parse(node):
     tag = node.tag
@@ -53,13 +59,20 @@ def rec_parse(node):
     return {'tag': tag, 'nodes': node_items}
 
 def handle_sentence(s, nlp, stop_words={'of', 'type', 'with', 'and', 'the', 'or', 'due', 'in', 'to', 'by', 'as', 'a', 'an', 'is', 'for', '.', ',', ':', ';', '?', '-', '(', ')', '/', '\\', '\'', '"', '\n', '\t', '\r'}):
-    sentences = split_tag_sentences(" ".join(s), nlp)
-    for i, words in enumerate(sentences):
-        word_index = {j: {'word': w[0], 
-                          'type': "stop word" if w in stop_words else "word", 
-                          'id': j, 
-                          'tag': w[1]} for j, w in enumerate(words)}
-
+    sentences = split_tag_sentences(s, nlp)
+    for i, sentence in enumerate(sentences):
+        words = sentence['sentence']
+        word_index = {}
+        lemmas = []
+        for j,w in enumerate(words):
+            word_index[j] = { 'word': w['word'], 
+                              'type': "stop word" if w['word'] in stop_words else "word", 
+                              'id': j, 
+                              'dep': w['dep'],
+                              'pos': w['pos'],
+                              'tag': w['tag']}
+            if not w['lemma'] == w['word']: lemmas.append({'parent_id': j, 'word': w['lemma']})
+        
         ids = sorted(list(word_index.keys()))
         conn = {None: {ids[0]}}
         j=0
@@ -68,7 +81,24 @@ def handle_sentence(s, nlp, stop_words={'of', 'type', 'with', 'and', 'the', 'or'
             except: conn[ids[j-1]] = {ids[j]}
         else: conn[ids[j]] = {None}
 
-        sentences[i] = {'string': " ".join(s), 'words': word_index, 'conn': conn}
+        for lemma in lemmas:
+            parent_word = word_index[lemma['parent_id']]
+            k = max(word_index.keys()) + 1
+            word_index[k] = { 'word': lemma['word'], 
+                                              'type': "stop word" if w['word'] in stop_words else "word", 
+                                              'id': k, 
+                                              'dep': parent_word['dep'],
+                                              'pos': parent_word['pos'],
+                                              'tag': parent_word['tag']}
+            
+            rev_conn = tq.gen_rev_conn(conn)
+            for i in rev_conn[lemma['parent_id']]:
+                conn[i].add(k)
+            
+            rev_conn = tq.gen_rev_conn(conn)
+            conn[k] = conn[lemma['parent_id']].copy()
+            
+        sentences[i] = {'string': sentence['string'], 'words': word_index, 'conn': conn}
     return sentences
 
 # join neighboring strings together, split them by sentence attaching the label "string" to each sentence. Split each sentence into words, tag the stop words. 
@@ -82,7 +112,7 @@ def rec_join_str(node, nlp):
             s.append(str(n))
         else:
             if len(s) > 0:
-                sentences = handle_sentence(s, nlp)
+                sentences = handle_sentence(" ".join(s), nlp)
                 string_item = {'tag': "string", 'nodes': sentences}
                 joined_items.append(copy.deepcopy(string_item))
                 s = []
@@ -90,7 +120,7 @@ def rec_join_str(node, nlp):
             joined_items.append((rec_join_str(n, nlp)))
     
     if len(s) > 0:
-        sentences = handle_sentence(s, nlp)
+        sentences = handle_sentence(" ".join(s), nlp)
         string_item = {'tag': "string", 'nodes': sentences}
         joined_items.append(copy.deepcopy(string_item))
     
