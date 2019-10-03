@@ -61,10 +61,9 @@ def rec_parse(node):
 def handle_sentence(s, nlp, stop_words={'of', 'type', 'with', 'and', 'the', 'or', 'due', 'in', 'to', 'by', 'as', 'a', 'an', 'is', 'for', '.', ',', ':', ';', '?', '-', '(', ')', '/', '\\', '\'', '"', '\n', '\t', '\r'}):
     sentences = split_tag_sentences(s, nlp)
     for i, sentence in enumerate(sentences):
-        words = sentence['sentence']
         word_index = {}
         lemmas = []
-        for j,w in enumerate(words):
+        for j,w in enumerate(sentence['sentence']):
             word_index[j] = { 'word': w['word'], 
                               'type': "stop word" if w['word'] in stop_words else "word", 
                               'id': j, 
@@ -92,8 +91,8 @@ def handle_sentence(s, nlp, stop_words={'of', 'type', 'with', 'and', 'the', 'or'
                                               'tag': parent_word['tag']}
             
             rev_conn = gen_rev_conn(conn)
-            for i in rev_conn[lemma['parent_id']]:
-                conn[i].add(k)
+            for j in rev_conn[lemma['parent_id']]:
+                conn[j].add(k)
             
             rev_conn = gen_rev_conn(conn)
             conn[k] = conn[lemma['parent_id']].copy()
