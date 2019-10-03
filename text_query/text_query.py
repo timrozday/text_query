@@ -70,7 +70,7 @@ def handle_sentence(s, nlp, stop_words={'of', 'type', 'with', 'and', 'the', 'or'
                               'dep': w['dep'],
                               'pos': w['pos'],
                               'tag': w['tag']}
-            if not w['lemma'] == w['word']: lemmas.append({'parent_id': j, 'word': w['lemma']})
+            if not w['lemma'].lower() == w['word'].lower(): lemmas.append({'parent_id': j, 'word': w['lemma']})
         
         ids = sorted(list(word_index.keys()))
         conn = {None: {ids[0]}}
@@ -88,7 +88,8 @@ def handle_sentence(s, nlp, stop_words={'of', 'type', 'with', 'and', 'the', 'or'
                                               'id': k, 
                                               'dep': parent_word['dep'],
                                               'pos': parent_word['pos'],
-                                              'tag': parent_word['tag']}
+                                              'tag': parent_word['tag'],
+                                              'parent': lemma['parent_id']}
             
             rev_conn = gen_rev_conn(conn)
             for j in rev_conn[lemma['parent_id']]:
