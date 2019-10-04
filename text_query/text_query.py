@@ -19,18 +19,25 @@ def text_filter(s):
     return s
 
 # uses spaCy
-def split_tag_sentences(s, nlp):
+def split_tag_sentences(s, nlp, split_sentence=True, lemma=True):
     doc = nlp(s)
-    doc_words = list(doc)
-    tagged_words = [{'word': str(w), 'tag': str(w.tag_), 'pos': str(w.pos_), 'lemma': str(w.lemma_), 'dep': str(w.dep_), 'idx': int(w.idx)} for w in doc_words]
-    sents = []
-    for sent in doc.sents:
-        start_idx = tagged_words[sent.start]['idx']
-        try: end_idx = tagged_words[sent.end]['idx']-1
-        except: end_idx = len(s)
-        
-        sents.append({'sentence': tagged_words[sent.start:sent.end], 'string': s[start_idx:end_idx]})
-        
+    tagged_words = [{'word': str(w), 'tag': str(w.tag_), 'pos': str(w.pos_), 'dep': str(w.dep_), 'idx': int(w.idx)} for w in doc]
+    if lemma:
+        doc_lower = nlp(s.lower())
+        for i,w in enumerate(doc_lower):
+            tagged_words[i]['lemma'] = str(w.lemma_)
+    
+    if split_sentence:
+        sents = []
+        for sent in doc.sents:
+            start_idx = tagged_words[sent.start]['idx']
+            try: end_idx = tagged_words[sent.end]['idx']-1
+            except: end_idx = len(s)
+            
+            sents.append({'sentence': tagged_words[sent.start:sent.end], 'string': s[start_idx:end_idx]})
+    else:
+        sents = [tagged_words]
+    
     return sents
 
 def rec_parse(node):
@@ -58,8 +65,8 @@ def rec_parse(node):
     
     return {'tag': tag, 'nodes': node_items}
 
-def handle_sentence(s, nlp, stop_words={'of', 'type', 'with', 'and', 'the', 'or', 'due', 'in', 'to', 'by', 'as', 'a', 'an', 'is', 'for', '.', ',', ':', ';', '?', '-', '(', ')', '/', '\\', '\'', '"', '\n', '\t', '\r'}):
-    sentences = split_tag_sentences(s, nlp)
+def handle_sentence(s, nlp, split_sentence=True, lemma=True, stop_words={'of', 'type', 'with', 'and', 'the', 'or', 'due', 'in', 'to', 'by', 'as', 'a', 'an', 'is', 'for', '.', ',', ':', ';', '?', '-', '(', ')', '/', '\\', '\'', '"', '\n', '\t', '\r'}):
+    sentences = split_tag_sentences(s, nlp, lemma=lemma, split_sentence=split_sentence)
     for i, sentence in enumerate(sentences):
         word_index = {}
         lemmas = []
@@ -70,7 +77,8 @@ def handle_sentence(s, nlp, stop_words={'of', 'type', 'with', 'and', 'the', 'or'
                               'dep': w['dep'],
                               'pos': w['pos'],
                               'tag': w['tag']}
-            if not w['lemma'].lower() == w['word'].lower(): lemmas.append({'parent_id': j, 'word': w['lemma']})
+            if lemma:
+                if not w['lemma'].lower() == w['word'].lower(): lemmas.append({'parent_id': j, 'word': w['lemma']})
         
         ids = sorted(list(word_index.keys()))
         conn = {None: {ids[0]}}
