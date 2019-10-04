@@ -21,7 +21,7 @@ def text_filter(s):
 # uses spaCy
 def split_tag_sentences(s, nlp, split_sentence=True, lemma=True):
     doc = nlp(s)
-    tagged_words = [{'word': str(w), 'tag': str(w.tag_), 'pos': str(w.pos_), 'dep': str(w.dep_), 'idx': int(w.idx)} for w in doc]
+    tagged_words = [{'word': str(w), 'tag': str(w.tag_), 'pos': str(w.pos_), 'dep': str(w.dep_), 'idx': int(w.idx), 'lemma': str(w.lemma_)} for w in doc]
     if lemma:
         doc_lower = nlp(s.lower())
         for i,w in enumerate(doc_lower):
