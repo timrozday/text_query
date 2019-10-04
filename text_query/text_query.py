@@ -19,13 +19,12 @@ def text_filter(s):
     return s
 
 # uses spaCy
-def split_tag_sentences(s, nlp, split_sentence=True, lemma=True):
+def split_tag_sentences(s, nlp, split_sentence=True, lemmatizer=None):
     doc = nlp(s)
-    tagged_words = [{'word': str(w), 'tag': str(w.tag_), 'pos': str(w.pos_), 'dep': str(w.dep_), 'idx': int(w.idx), 'lemma': str(w.lemma_)} for w in doc]
-    if lemma:
-        doc_lower = nlp(s.lower())
-        for i,w in enumerate(doc_lower):
-            tagged_words[i]['lemma'] = str(w.lemma_)
+    tagged_words = [{'word': str(w), 'tag': str(w.tag_), 'pos': str(w.pos_), 'dep': str(w.dep_), 'idx': int(w.idx)} for w in doc]
+    if lemmatizer:
+        for i,w in enumerate(tagged_words):
+            tagged_words[i]['lemma'] = str(lemmatizer(w['word'], w['pos'])[0])
     
     if split_sentence:
         sents = []
@@ -40,33 +39,9 @@ def split_tag_sentences(s, nlp, split_sentence=True, lemma=True):
     
     return sents
 
-def rec_parse(node):
-    tag = node.tag
-    tag = re.sub('\{.*?\}','',tag)
-    node_items = []
-    
-    s = text_filter(node.text)
-    if not s is None: node_items.append(str(s))
-    
-    children = node[:] # shortcut for getchildren()
-    for child in children:
-        child_data = rec_parse(child)
-        if child_data is None: continue 
-        if child_data['tag'] in {'content', 'sup', 'sub', 'linkHtml'}: # if the child node is an inline node then remove the nesting
-            for i in child_data['nodes']:
-                node_items.append(i)
-        else:
-            node_items.append(child_data)
-    
-    s = text_filter(node.tail)
-    if not s is None: node_items.append(str(s))
-    
-    if len(node_items) == 0: return None
-    
-    return {'tag': tag, 'nodes': node_items}
-
-def handle_sentence(s, nlp, split_sentence=True, lemma=True, stop_words={'of', 'type', 'with', 'and', 'the', 'or', 'due', 'in', 'to', 'by', 'as', 'a', 'an', 'is', 'for', '.', ',', ':', ';', '?', '-', '(', ')', '/', '\\', '\'', '"', '\n', '\t', '\r'}):
-    sentences = split_tag_sentences(s, nlp, lemma=lemma, split_sentence=split_sentence)
+def handle_sentence(s, nlp, split_sentence=True, lemmatizer=None, stop_words={'of', 'type', 'with', 'and', 'the', 'or', 'due', 'in', 'to', 'by', 'as', 'a', 'an', 'is', 'for', '.', ',', ':', ';', '?', '-', '(', ')', '/', '\\', '\'', '"', '\n', '\t', '\r'}):
+    sentences = split_tag_sentences(s, nlp, lemmatizer=lemmatizer, split_sentence=split_sentence)
+    result_sentences = []
     for i, sentence in enumerate(sentences):
         word_index = {}
         lemmas = []
@@ -77,10 +52,13 @@ def handle_sentence(s, nlp, split_sentence=True, lemma=True, stop_words={'of', '
                               'dep': w['dep'],
                               'pos': w['pos'],
                               'tag': w['tag']}
-            if lemma:
-                if not w['lemma'].lower() == w['word'].lower(): lemmas.append({'parent_id': j, 'word': w['lemma']})
+            if lemmatizer:
+                if not w['lemma'].lower() == w['word'].lower(): 
+                    lemmas.append({'parent_id': j, 'word': w['lemma']})
         
         ids = sorted(list(word_index.keys()))
+        if len(ids)==0: continue
+        
         conn = {None: {ids[0]}}
         j=0
         for j in range(1,len(ids)):
@@ -106,8 +84,33 @@ def handle_sentence(s, nlp, split_sentence=True, lemma=True, stop_words={'of', '
             rev_conn = gen_rev_conn(conn)
             conn[k] = conn[lemma['parent_id']].copy()
             
-        sentences[i] = {'string': sentence['string'], 'words': word_index, 'conn': conn}
-    return sentences
+        result_sentences.append({'string': sentence['string'], 'words': word_index, 'conn': conn})
+    return result_sentences
+
+def rec_parse(node):
+    tag = node.tag
+    tag = re.sub('\{.*?\}','',tag)
+    node_items = []
+    
+    s = text_filter(node.text)
+    if not s is None: node_items.append(str(s))
+    
+    children = node[:] # shortcut for getchildren()
+    for child in children:
+        child_data = rec_parse(child)
+        if child_data is None: continue 
+        if child_data['tag'] in {'content', 'sup', 'sub', 'linkHtml'}: # if the child node is an inline node then remove the nesting
+            for i in child_data['nodes']:
+                node_items.append(i)
+        else:
+            node_items.append(child_data)
+    
+    s = text_filter(node.tail)
+    if not s is None: node_items.append(str(s))
+    
+    if len(node_items) == 0: return None
+    
+    return {'tag': tag, 'nodes': node_items}
 
 # join neighboring strings together, split them by sentence attaching the label "string" to each sentence. Split each sentence into words, tag the stop words. 
 def rec_join_str(node, nlp):
