@@ -113,7 +113,7 @@ def rec_parse(node):
     return {'tag': tag, 'nodes': node_items}
 
 # join neighboring strings together, split them by sentence attaching the label "string" to each sentence. Split each sentence into words, tag the stop words. 
-def rec_join_str(node, nlp):
+def rec_join_str(node, nlp, lemmatizer=None, split_sentence=True, stop_words={'of', 'type', 'with', 'and', 'the', 'or', 'due', 'in', 'to', 'by', 'as', 'a', 'an', 'is', 'for', '.', ',', ':', ';', '?', '-', '(', ')', '/', '\\', '\'', '"', '\n', '\t', '\r'}):
     if node is None: return None
     joined_items = []
     s = []
@@ -123,7 +123,7 @@ def rec_join_str(node, nlp):
             s.append(str(n))
         else:
             if len(s) > 0:
-                sentences = handle_sentence(" ".join(s), nlp)
+                sentences = handle_sentence(" ".join(s), nlp, lemmatizer=lemmatizer, split_sentence=split_sentence, stop_words=stop_words)
                 string_item = {'tag': "string", 'nodes': sentences}
                 joined_items.append(copy.deepcopy(string_item))
                 s = []
