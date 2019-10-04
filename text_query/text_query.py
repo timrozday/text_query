@@ -36,7 +36,7 @@ def split_tag_sentences(s, nlp, split_sentence=True, lemma=True):
             
             sents.append({'sentence': tagged_words[sent.start:sent.end], 'string': s[start_idx:end_idx]})
     else:
-        sents = [tagged_words]
+        sents = [{'sentence': tagged_words, 'string': s}]
     
     return sents
 
