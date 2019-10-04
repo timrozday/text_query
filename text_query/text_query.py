@@ -563,22 +563,16 @@ def onto_index_db_query(sections, db_conn):
 
 
 
-def query_thesauruses(kmer, indexes):
-    used_codes = set()
-    for index in indexes:
-        for n in range(1,4):
-            if kmer in index[n].keys():
-                for match in [{'code': k, 'sentence': v} for k,vs in index[n][kmer].items() for v in vs]:
-                    if not match['code'] in used_codes:
-                        used_codes.add(match['code'])
-                        yield copy.deepcopy(match)
+def query_thesauruses(kmer, db_conn, sources):
+    kmer_str = re.sub('\'', '\'\'', repr(kmer)) # handle quotes
+    results = db_conn.execute(f"select st.onto_id, st.source, st.string, st.expanded_sentences from (select * from (select * from kmers where kmer='{kmer_str}') km left join kmer_to_string on km.id=kmer_to_string.kmer_id) ks inner join (select * from strings) st on ks.string_id=st.id")
+    for onto_id, source, string, sentence in results:
+        if source in sources: yield {'source': source, 'onto_id': onto_id, 'string': string, 'sentence': eval(sentence)}
 
-def query_names_indexes(onto_id, indexes):
-    for index in indexes:
-        try: 
-            names = index[onto_id]
-            for n in names: yield copy.deepcopy(n)
-        except: pass
+def query_names_indexes(onto_id, db_conn):
+    results = db_conn.execute(f"select source, string, predicate_type, sentences, expanded_sentences from strings where onto_id='{onto_id}'")
+    for source, string, predicate_type, sentences, expanded_sentences in results:
+        yield {'string': string, 'sentence': eval(expanded_sentences), 'original_sentence': eval(sentences)}
 
 def expand_thesaurus(sentence, matches, query_f, f_args, stop_words={'of', 'type', 'with', 'and', 'the', 'or', 'due', 'in', 'to', 'by', 'as', 'a', 'an', 'is', 'for', '.', ',', ':', ';', '?', '-', '(', ')', '/', '\\', '\'', '"', '\n', '\t', '\r'}):
     match_names = set()
@@ -597,7 +591,7 @@ def expand_thesaurus(sentence, matches, query_f, f_args, stop_words={'of', 'type
 
         match_path_words = {sentence['words'][i]['word'].lower() for i in match_path_ids if not sentence['words'][i]['word'].lower() in stop_words}
         
-        names = query_f(match['code'], *f_args)
+        names = query_f(match['onto_id'], *f_args)
         
         # remove duplicates by standardising representation in hashed form
         for name in names:
@@ -652,13 +646,13 @@ def expand_thesaurus(sentence, matches, query_f, f_args, stop_words={'of', 'type
                         
     return sentence
 
-def expand_index(sentence, kmer_indexes, names_indexes):
+def expand_index(sentence, kmer_query_f, names_query_f, kmer_query_args, names_query_args):
     # find matches from the thesaurus indexes
-    matches = kmer_query(sentence, query_thesauruses, [kmer_indexes], stop_words=set())
+    matches = kmer_query(sentence, kmer_query_f, kmer_query_args, stop_words=set())
     matches = all_word_query(sentence, matches, stop_words=set())
     matches = loc_query(sentence, matches, stop_words=set())
     
     # substitute names from the matches into the sentence
-    expanded_sentence = expand_thesaurus(sentence, matches, query_names_indexes, [names_indexes])
+    expanded_sentence = expand_thesaurus(sentence, matches, names_query_f, names_query_args)
     
     return expanded_sentence
