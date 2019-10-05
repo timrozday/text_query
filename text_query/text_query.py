@@ -24,7 +24,7 @@ def split_tag_sentences(s, nlp, split_sentence=True, lemmatizer=None):
     tagged_words = [{'word': str(w), 'tag': str(w.tag_), 'pos': str(w.pos_), 'dep': str(w.dep_), 'idx': int(w.idx)} for w in doc]
     if lemmatizer:
         for i,w in enumerate(tagged_words):
-            tagged_words[i]['lemma'] = str(lemmatizer(w['word'], w['pos'])[0])
+            tagged_words[i]['lemma'] = str(lemmatizer(w['word'].lower(), w['pos'])[0])
     
     if split_sentence:
         sents = []
