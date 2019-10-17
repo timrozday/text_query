@@ -475,12 +475,13 @@ def loc_query(sentence, matches, stop_words={'of', 'type', 'with', 'and', 'the',
             if not gap_sum <= len(path_ids)/3: continue
 
             # filter out paths that don't make it to the end of the match
-            if len(list(path_ids & match['sentence']['rev_conn'][None])) == 0: continue
+            if len(path_ids & match['sentence']['rev_conn'][None]) == 0: continue
             
             good_paths.add(tuple(path_ids))
 
-        match['paths'] = good_paths.copy()
-        yield match
+        if len(good_paths)>0: 
+            match['paths'] = good_paths.copy()
+            yield match
 
 def rec_conn_get_common_paths(sentence, match_sentence, sentence_path, match_path, stop_words):
     paths = set()
