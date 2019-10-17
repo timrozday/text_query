@@ -472,8 +472,12 @@ def loc_query(sentence, matches, stop_words={'of', 'type', 'with', 'and', 'the',
 
             # filter out paths that have too many gaps
             gap_sum = sum([p[1] for p in path])
-            if gap_sum <= len(path_ids)/3: 
-                good_paths.add(tuple(path_ids))
+            if not gap_sum <= len(path_ids)/3: continue
+
+            # filter out paths that don't make it to the end of the match
+            if len(list(path_ids & match['sentence']['rev_conn'][None])) == 0: continue
+            
+            good_paths.add(tuple(path_ids))
 
         match['paths'] = good_paths.copy()
         yield match
