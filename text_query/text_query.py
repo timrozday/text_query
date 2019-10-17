@@ -197,14 +197,14 @@ def conn_gen_kmers(sentence, n, stop_words={'of', 'type', 'with', 'and', 'the', 
         kmers.update(rec_conn_gen_kmers(sentence, [word_id], n, stop_words))
     return kmers
 
-def rec_gen_sentences(conn, sentence):
+def rec_gen_sentences(conn, sentence=[None]):
     #if not sentence[-1] in conn: return {tuple(sentence)}
     sentences = set()
     for next_id in conn[sentence[-1]]:
         if next_id is None: 
-            sentences.add(tuple(sentence))
+            sentences.add(tuple(sentence[1:]))
             continue
-        sentences.update(rec_gen_sentences(conn, sentence+[next_id]))
+        sentences.update(rec_gen_sentences(conn, sentence=sentence+[next_id]))
     return sentences
 
 
@@ -328,11 +328,7 @@ def expand_hyphen(sentence):
 
 def expand_lists(sentence):
     conn = sentence['conn']
-    start_ids = conn[None]
-
-    sentences_ids = set()
-    for start_id in start_ids:
-        sentences_ids.update(rec_gen_sentences(conn, [start_id]))
+    sentences_ids = rec_gen_sentences(conn)
 
     # detect lists in each of these sentences, and make the nessesary adjustments
     for sentence_ids in sentences_ids:
@@ -430,11 +426,16 @@ def kmer_query(sentence, query_f, f_args, stop_words={'of', 'type', 'with', 'and
             matches = query_f(kmer, *f_args)
             for m in matches: yield m
 
+# don't use!
 def all_word_query(sentence, matches, stop_words={'of', 'type', 'with', 'and', 'the', 'or', 'due', 'in', 'to', 'by', 'as', 'a', 'an', 'is', 'for', '.', ',', ':', ';', '?', '-', '(', ')', '/', '\\', '\'', '"', '\n', '\t', '\r'}):
     sentence_words = {v['word'].lower() for k,v in sentence['words'].items()}
     for match in matches:
-        match_words = {v['word'].lower() for k,v in match['sentence']['words'].items() if v['word'].lower() not in stop_words}
-        if len(match_words - sentence_words) == 0: yield match
+        for match_word_ids in rec_gen_sentences(match['sentence']['conn']):
+            match_words = {match['sentence']['words'][i]['word'].lower() for i in match_word_ids}
+            match_words = match_words - stop_words
+            if len(match_words - sentence_words) == 0: 
+                yield match
+                break
 
 def loc_query(sentence, matches, stop_words={'of', 'type', 'with', 'and', 'the', 'or', 'due', 'in', 'to', 'by', 'as', 'a', 'an', 'is', 'for', '.', ',', ':', ';', '?', '-', '(', ')', '/', '\\', '\'', '"', '\n', '\t', '\r'}):
     sentence['rev_conn'] = gen_rev_conn(sentence['conn'])
@@ -528,7 +529,7 @@ def rec_conn_get_common_paths(sentence, match_sentence, sentence_path, match_pat
 def query_sentence(sentence, db_conn):
     # do querying
     matches = kmer_query(sentence, query_index_db, [db_conn])            
-    matches = all_word_query(sentence, matches)
+    #matches = all_word_query(sentence, matches)
     matches = loc_query(sentence, matches)
 
     return list(matches)
