@@ -536,14 +536,14 @@ def conn_get_common_paths(sentence, match_sentence, sentence_start_id, match_sta
     while True:
         new_matched_paths = []
         for matched_path in matched_paths:
-            sentence_next_ids = tq.next_conn_skip_stop_words(sentence, matched_path['sentence_path'][-1][0], stop_words)
-            match_next_ids = tq.next_conn_skip_stop_words(match_sentence, matched_path['match_path'][-1][0], stop_words)
+            sentence_next_ids = next_conn_skip_stop_words(sentence, matched_path['sentence_path'][-1][0], stop_words)
+            match_next_ids = next_conn_skip_stop_words(match_sentence, matched_path['match_path'][-1][0], stop_words)
 
             # allow for gaps
             sentence_next_next_ids = set()
             for sentence_next_id in sentence_next_ids:
                 if sentence_next_id is None: continue
-                sentence_next_next_ids.update(tq.next_conn_skip_stop_words(sentence, sentence_next_id, stop_words))
+                sentence_next_next_ids.update(next_conn_skip_stop_words(sentence, sentence_next_id, stop_words))
 
             # form dictionary where each word has locs and the number of gaps needed to reach that loc
             sentence_next_words = {}
