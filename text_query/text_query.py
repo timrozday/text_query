@@ -465,11 +465,12 @@ def loc_query(sentence, matches, stop_words={'of', 'type', 'with', 'and', 'the',
         for sentence_start_id, match_start_id in start_ids:
             #r = rec_conn_get_common_paths(sentence, match['sentence'], [(sentence_start_id,0)], [(match_start_id,0)], stop_words)
             r = conn_get_common_paths(sentence, match['sentence'], sentence_start_id, match_start_id, stop_words)
+            #paths.update({p[0] for p in r})
             paths.update({tuple(p['sentence_path']) for p in r})
 
         good_paths = set()
         for path in paths:
-            path_ids = {p[0] for p in path}
+            path_ids = (p[0] for p in path)
 
             # filter out paths that have too many gaps
             gap_sum = sum([p[1] for p in path])
@@ -478,7 +479,7 @@ def loc_query(sentence, matches, stop_words={'of', 'type', 'with', 'and', 'the',
             # filter out paths that don't make it to the end of the match
             #if len(path_ids & match['sentence']['rev_conn'][None]) == 0: continue
             
-            good_paths.add(tuple(path_ids))
+            good_paths.add(path_ids)
 
         if len(good_paths)>0: 
             match['paths'] = good_paths.copy()
@@ -578,7 +579,7 @@ def conn_get_common_paths(sentence, match_sentence, sentence_start_id, match_sta
                 new_matched_paths.append({'sentence_path': matched_path['sentence_path']+[sentence_next_id], 
                                           'match_path': matched_path['match_path']+[match_next_id]})
         
-        if len(new_matched_paths): matched_paths = new_matched_paths
+        if len(new_matched_paths)>0: matched_paths = new_matched_paths
         else: break
         
     return confirmed_matched_paths
