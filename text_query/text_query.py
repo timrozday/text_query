@@ -567,8 +567,6 @@ def onto_index_db_query(sections, db_conn):
             all_results.append(results)
     return all_results
 
-
-
 def query_thesauruses(kmer, db_conn, sources):
     kmer_str = re.sub('\'', '\'\'', repr(kmer)) # handle quotes
     results = db_conn.execute(f"select st.onto_id, st.source, st.string, st.expanded_sentences from (select * from (select * from kmers where kmer='{kmer_str}') km left join kmer_to_string on km.id=kmer_to_string.kmer_id) ks inner join (select * from strings) st on ks.string_id=st.id")
@@ -580,76 +578,106 @@ def query_names_indexes(onto_id, db_conn):
     for source, string, predicate_type, sentences, expanded_sentences in results:
         yield {'string': string, 'sentence': eval(expanded_sentences), 'original_sentence': eval(sentences)}
 
-def expand_thesaurus(sentence, matches, query_f, f_args, stop_words={'of', 'type', 'with', 'and', 'the', 'or', 'due', 'in', 'to', 'by', 'as', 'a', 'an', 'is', 'for', '.', ',', ':', ';', '?', '-', '(', ')', '/', '\\', '\'', '"', '\n', '\t', '\r'}):
-    match_names = set()
-    for match in matches:
-        # for the added word parents 
-        match_path_ids = set()
-        match_start_ids = set()
-        match_end_ids = set()
-        for p in match['paths']:
-            match_path_ids.update(p)
-            match_start_ids.add(p[0])
-            match_end_ids.add(p[-1])
+# def expand_thesaurus(sentence, matches, query_f, f_args, stop_words={'of', 'type', 'with', 'and', 'the', 'or', 'due', 'in', 'to', 'by', 'as', 'a', 'an', 'is', 'for', '.', ',', ':', ';', '?', '-', '(', ')', '/', '\\', '\'', '"', '\n', '\t', '\r'}):
+#     match_names = set()
+#     for match in matches:
+#         # for the added word parents 
+#         match_path_ids = set()
+#         match_start_ids = set()
+#         match_end_ids = set()
+#         for p in match['paths']:
+#             match_path_ids.update(p)
+#             match_start_ids.add(p[0])
+#             match_end_ids.add(p[-1])
 
-        match_start_ids = match_start_ids - {None}
-        match_end_ids = match_end_ids - {None}
+#         match_start_ids = match_start_ids - {None}
+#         match_end_ids = match_end_ids - {None}
 
-        match_path_words = {sentence['words'][i]['word'].lower() for i in match_path_ids if not sentence['words'][i]['word'].lower() in stop_words}
+#         match_path_words = {sentence['words'][i]['word'].lower() for i in match_path_ids if not sentence['words'][i]['word'].lower() in stop_words}
         
-        names = query_f(match['onto_id'], *f_args)
+#         names = query_f(match['onto_id'], *f_args)
         
-        # remove duplicates by standardising representation in hashed form
-        for name in names:
-            # check if the name adds any new words
-            name_words = {w['word'].lower() for k,w in name['sentence']['words'].items() if not w['word'].lower() in stop_words}
-            if len(name_words - match_path_words) > 0:
-                name_sentence = {'words': {k:{'word': v['word'].lower(), 'id': v['id'], 'tag': v['tag'], 'type': v['type']} for k,v in name['sentence']['words'].items()}, 'conn': name['sentence']['conn']}
-                match_names.add(repr({'sentence': name_sentence, 'match_path_ids': match_path_ids, 'match_start_ids': match_start_ids, 'match_end_ids': match_end_ids}))
+#         # remove duplicates by standardising representation in hashed form
+#         for name in names:
+#             # check if the name adds any new words
+#             name_words = {w['word'].lower() for k,w in name['sentence']['words'].items() if not w['word'].lower() in stop_words}
+#             if len(name_words - match_path_words) > 0:
+#                 name_sentence = {'words': {k:{'word': v['word'].lower(), 'id': v['id'], 'tag': v['tag'], 'type': v['type']} for k,v in name['sentence']['words'].items()}, 'conn': name['sentence']['conn']}
+#                 match_names.add(repr({'sentence': name_sentence, 'match_path_ids': match_path_ids, 'match_start_ids': match_start_ids, 'match_end_ids': match_end_ids}))
         
-    for name in match_names:
-        name = eval(name)
-        max_id = max(sentence['words'].keys())  # needs to be updated each time
-        sentence['rev_conn'] = gen_rev_conn(sentence['conn'])  # needs to be updated each time
-        
-        name_to_sentence_map = {}
-        
-        # add words
-        for k,v in name['sentence']['words'].items():
-            i = v['id']
-            new_id = max_id+i+1
-            new_word = v.copy()
-            new_word['id'] = new_id
-            new_word['parent'] = name['match_path_ids']
+#     for name in match_names:
+#         name = eval(name)
 
-            name_to_sentence_map[i] = new_id
-            sentence['words'][new_id] = new_word
-
-        # add conn from name
-        name_rev_conn = gen_rev_conn(name['sentence']['conn'])
-        name_start_ids = name['sentence']['conn'][None] - {None}
-        name_end_ids = name_rev_conn[None] - {None}
+#         max_id = max(sentence['words'].keys())  # needs to be updated each time
+#         sentence['rev_conn'] = gen_rev_conn(sentence['conn'])  # needs to be updated each time
         
-        for k,vs in name['sentence']['conn'].items():
-            if k is None:  # handle beginning of match
-                for match_start_id in name['match_start_ids']:
-                    for prev_match_start_id in sentence['rev_conn'][match_start_id]:
-                        try: sentence['conn'][prev_match_start_id].update({name_to_sentence_map[v] for v in name_start_ids})
-                        except: sentence['conn'][prev_match_start_id] = {name_to_sentence_map[v] for v in name_start_ids}
-            else:
-                new_k = name_to_sentence_map[k]
-                for v in vs:
-                    if v is None:  # handle end of match
-                        for name_end_id in name_end_ids:
-                            name_end_id = name_to_sentence_map[name_end_id]
-                            for match_end_id in name['match_end_ids']:
-                                try: sentence['conn'][name_end_id].update(sentence['conn'][match_end_id])
-                                except: sentence['conn'][name_end_id] = set(sentence['conn'][match_end_id])
-                    else:  # handle the other words
-                        new_v = name_to_sentence_map[v]
-                        try: sentence['conn'][new_k].add(new_v)
-                        except: sentence['conn'][new_k] = {new_v}
+#         name_to_sentence_map = {}
+        
+#         # add words
+#         for k,v in name['sentence']['words'].items():
+#             i = v['id']
+#             new_id = max_id+i+1
+#             new_word = v.copy()
+#             new_word['id'] = new_id
+#             new_word['parent'] = name['match_path_ids']
+
+#             name_to_sentence_map[i] = new_id
+#             sentence['words'][new_id] = new_word
+
+#         # add conn from name
+#         name_rev_conn = gen_rev_conn(name['sentence']['conn'])
+#         name_start_ids = name['sentence']['conn'][None] - {None}
+#         name_end_ids = name_rev_conn[None] - {None}
+        
+#         for k,vs in name['sentence']['conn'].items():
+#             if k is None:  # handle beginning of match
+#                 for match_start_id in name['match_start_ids']:
+#                     for prev_match_start_id in sentence['rev_conn'][match_start_id]:
+#                         try: sentence['conn'][prev_match_start_id].update({name_to_sentence_map[v] for v in name_start_ids})
+#                         except: sentence['conn'][prev_match_start_id] = {name_to_sentence_map[v] for v in name_start_ids}
+#             else:
+#                 new_k = name_to_sentence_map[k]
+#                 for v in vs:
+#                     if v is None:  # handle end of match
+#                         for name_end_id in name_end_ids:
+#                             name_end_id = name_to_sentence_map[name_end_id]
+#                             for match_end_id in name['match_end_ids']:
+#                                 try: sentence['conn'][name_end_id].update(sentence['conn'][match_end_id])
+#                                 except: sentence['conn'][name_end_id] = set(sentence['conn'][match_end_id])
+#                     else:  # handle the other words
+#                         new_v = name_to_sentence_map[v]
+#                         try: sentence['conn'][new_k].add(new_v)
+#                         except: sentence['conn'][new_k] = {new_v}
                         
+#     return sentence
+
+def expand_thesaurus(sentence, matches, query_f, f_args, stop_words={'of', 'type', 'with', 'and', 'the', 'or', 'due', 'in', 'to', 'by', 'as', 'a', 'an', 'is', 'for', '.', ',', ':', ';', '?', '-', '(', ')', '/', '\\', '\'', '"', '\n', '\t', '\r'}):
+    # organise thesaurus matches by location, just store the match code (not the string/sentence)
+    match_locs = {}
+    for match in matches:
+        for p in match['paths']:
+            try: match_locs[tuple(p)].add(f"{match['source']};{match['onto_id']}")
+            except: match_locs[tuple(p)] = {f"{match['source']};{match['onto_id']}"}
+    
+    new_id = max([w['id'] for k,w in sentence['words'].items()]) + 1
+    for path_ids, matches in match_locs.items():
+        # add codes to sentence
+        new_ids = set()
+        for code in matches:
+            sentence['words'][new_id] = {'id': new_id, 'word': code, 'parent': path_ids}
+            new_ids.add(new_id)
+            new_id+=1
+        
+        # add connections to the codes
+        for code_id in new_ids:
+            sentence['rev_conn'] = tq.gen_rev_conn(sentence['conn'])
+            for s_id in sentence['rev_conn'][path_ids[0]]:
+                sentence['conn'][s_id].add(code_id)
+            for s_id in sentence['conn'][path_ids[-1]]:
+                try: sentence['conn'][code_id].add(s_id)
+                except: sentence['conn'][code_id] = {s_id}
+        sentence['rev_conn'] = tq.gen_rev_conn(sentence['conn'])
+        
     return sentence
 
 def expand_index(sentence, kmer_query_f, names_query_f, kmer_query_args, names_query_args):
