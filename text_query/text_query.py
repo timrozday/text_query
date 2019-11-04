@@ -670,13 +670,13 @@ def expand_thesaurus(sentence, matches, query_f, f_args, stop_words={'of', 'type
         
         # add connections to the codes
         for code_id in new_ids:
-            sentence['rev_conn'] = tq.gen_rev_conn(sentence['conn'])
+            sentence['rev_conn'] = gen_rev_conn(sentence['conn'])
             for s_id in sentence['rev_conn'][path_ids[0]]:
                 sentence['conn'][s_id].add(code_id)
             for s_id in sentence['conn'][path_ids[-1]]:
                 try: sentence['conn'][code_id].add(s_id)
                 except: sentence['conn'][code_id] = {s_id}
-        sentence['rev_conn'] = tq.gen_rev_conn(sentence['conn'])
+        sentence['rev_conn'] = gen_rev_conn(sentence['conn'])
         
     return sentence
 
