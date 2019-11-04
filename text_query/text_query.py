@@ -463,7 +463,8 @@ def loc_query(sentence, matches, stop_words={'of', 'type', 'with', 'and', 'the',
         # for each of the start points, get the paths
         paths = set()
         for sentence_start_id, match_start_id in start_ids:
-            r = rec_conn_get_common_paths(sentence, match['sentence'], [(sentence_start_id,0)], [(match_start_id,0)], stop_words)
+            #r = rec_conn_get_common_paths(sentence, match['sentence'], [(sentence_start_id,0)], [(match_start_id,0)], stop_words)
+            r = conn_get_common_paths(sentence, match['sentence'], sentence_start_id, match_start_id, stop_words)
             paths.update({p[0] for p in r})
 
         good_paths = set()
@@ -529,7 +530,58 @@ def rec_conn_get_common_paths(sentence, match_sentence, sentence_path, match_pat
 
     return paths
 
+def conn_get_common_paths(sentence, match_sentence, sentence_start_id, match_start_id, stop_words):
+    matched_paths = [{'sentence_path': [(sentence_start_id,0)], 'match_path': [(match_start_id,0)]},]
+    confirmed_matched_paths = []
+    while True:
+        new_matched_paths = []
+        for matched_path in matched_paths:
+            sentence_next_ids = tq.next_conn_skip_stop_words(sentence, matched_path['sentence_path'][-1][0], stop_words)
+            match_next_ids = tq.next_conn_skip_stop_words(match_sentence, matched_path['match_path'][-1][0], stop_words)
 
+            # allow for gaps
+            sentence_next_next_ids = set()
+            for sentence_next_id in sentence_next_ids:
+                if sentence_next_id is None: continue
+                sentence_next_next_ids.update(tq.next_conn_skip_stop_words(sentence, sentence_next_id, stop_words))
+
+            # form dictionary where each word has locs and the number of gaps needed to reach that loc
+            sentence_next_words = {}
+            for word_id in sentence_next_ids:
+                if word_id is None: continue
+                word = sentence['words'][word_id]['word'].lower()
+                try: sentence_next_words[word].add((word_id,0))
+                except: sentence_next_words[word] = {(word_id,0)}
+
+            for word_id in sentence_next_next_ids:
+                if word_id is None: continue
+                word = sentence['words'][word_id]['word'].lower()
+                try: sentence_next_words[word].add((word_id,1))
+                except: sentence_next_words[word] = {(word_id,1)}
+
+            match_next_words = {}
+            for word_id in match_next_ids:
+                if word_id is None:
+                    confirmed_matched_paths.append(matched_path)
+                    continue
+                word = match_sentence['words'][word_id]['word'].lower()
+                try: match_next_words[word].add((word_id,0))
+                except: match_next_words[word] = {(word_id,0)}
+
+            # generate list of words that both sentence and match can move to, and generate all the word_ids that fascilitate this transition to the next words
+            next_words = set(match_next_words.keys()) & set(sentence_next_words.keys())
+            next_ids = set()
+            for word in next_words:
+                next_ids.update(it.product(sentence_next_words[word], match_next_words[word]))
+
+            for sentence_next_id, match_next_id in next_ids:
+                new_matched_paths.append({'sentence_path': matched_path['sentence_path']+[sentence_next_id], 
+                                          'match_path': matched_path['match_path']+[match_next_id]})
+        
+        if len(new_matched_paths): matched_paths = new_matched_paths
+        else: break
+        
+    return confirmed_matched_paths
 
 def query_sentence(sentence, db_conn):
     # do querying
