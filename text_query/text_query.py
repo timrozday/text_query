@@ -470,7 +470,7 @@ def loc_query(sentence, matches, stop_words={'of', 'type', 'with', 'and', 'the',
 
         good_paths = set()
         for path in paths:
-            path_ids = (p[0] for p in path)
+            path_ids = tuple([p[0] for p in path])
 
             # filter out paths that have too many gaps
             gap_sum = sum([p[1] for p in path])
@@ -709,8 +709,8 @@ def expand_thesaurus(sentence, matches, query_f, f_args, stop_words={'of', 'type
     match_locs = {}
     for match in matches:
         for p in match['paths']:
-            try: match_locs[tuple(p)].add(f"{match['source']};{match['onto_id']}")
-            except: match_locs[tuple(p)] = {f"{match['source']};{match['onto_id']}"}
+            try: match_locs[p].add(f"{match['source']};{match['onto_id']}")
+            except: match_locs[p] = {f"{match['source']};{match['onto_id']}"}
     
     new_id = max([w['id'] for k,w in sentence['words'].items()]) + 1
     for path_ids, matches in match_locs.items():
