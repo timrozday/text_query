@@ -50,6 +50,7 @@ def handle_sentence(s, nlp, split_sentence=True, lemmatizer=None, stop_words={'o
                               'type': "stop word" if w['word'] in stop_words else "word", 
                               'id': j, 
                               'dep': w['dep'],
+                              'idx': ( w['idx'], w['idx']+len(w['word'])-1 ),
                               'pos': w['pos'],
                               'tag': w['tag']}
             if lemmatizer:
