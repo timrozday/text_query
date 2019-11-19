@@ -404,9 +404,9 @@ def expand_sentence(original_sentence):
 
 def query_index_db(kmer, db_conn):
     kmer_str = re.sub('\'', '\'\'', repr(kmer)) # handle quotes
-    results = db_conn.execute(f"select st.onto_id, st.source, st.string, st.expanded_sentences from (select * from (select * from kmers where kmer='{kmer_str}') km left join kmer_to_string on km.id=kmer_to_string.kmer_id) ks inner join (select * from strings) st on ks.string_id=st.id")
-    for onto_id, source, string, sentence in results:
-        yield {'source': source, 'onto_id': onto_id, 'string': string, 'sentence': eval(sentence)}
+    results = db_conn.execute(f"select st.onto_id, st.predicate_type, st.source, st.string, st.expanded_sentences from (select * from (select * from kmers where kmer='{kmer_str}') km left join kmer_to_string on km.id=kmer_to_string.kmer_id) ks inner join (select * from strings) st on ks.string_id=st.id")
+    for onto_id, predicate_type, source, string, sentence in results:
+        yield {'source': source, 'onto_id': onto_id, 'predicate_type': predicate_type, 'string': string, 'sentence': eval(sentence)}
 
 def kmer_query(sentence, query_f, f_args, stop_words={'of', 'type', 'with', 'and', 'the', 'or', 'due', 'in', 'to', 'by', 'as', 'a', 'an', 'is', 'for', '.', ',', ':', ';', '?', '-', '(', ')', '/', '\\', '\'', '"', '\n', '\t', '\r'}):
     # generate kmers from conn
