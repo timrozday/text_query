@@ -3,7 +3,7 @@ from setuptools import setup
 setup(
     # Needed to silence warnings (and to be a worthwhile package)
     name='text_query',
-    url='https://github.com/timrozday/inchi_compare',
+    url='https://github.com/timrozday/text_query',
     author='Tim Rozday',
     author_email='timrozday@ebi.ac.uk',
     # Needed to actually package something
