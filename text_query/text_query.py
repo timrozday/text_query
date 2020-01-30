@@ -298,7 +298,7 @@ def expand_brackets(sentence):
 
 def expand_hyphen_slash(sentence):
     conn = sentence['conn']
-    rev_conn = tq.gen_rev_conn(conn)
+    rev_conn = gen_rev_conn(conn)
     
     # find all hyphenated/slash words
     for w_i,word in sentence['words'].items():
@@ -332,7 +332,7 @@ def expand_hyphen_slash(sentence):
                 for nn in next_next_words:
                     conn[p].add(nn)
                 
-            rev_conn = tq.gen_rev_conn(conn)  # update rev_conn
+            rev_conn = gen_rev_conn(conn)  # update rev_conn
             
     sentence['conn'] = conn
     return sentence
