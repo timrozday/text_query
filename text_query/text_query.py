@@ -128,7 +128,7 @@ def handle_sentence(s, nlp, split_sentence=True, lemmatizer=None, stop_words={'o
         result_sentences.append({'string': sentence['string'], 'words': word_index, 'conn': conn})
     return result_sentences
 
-def rec_parse(node):
+def rec_parse(node, inline_tags={'content', 'sup', 'sub', 'linkHtml', 'caption'}):
     tag = node.tag
     tag = re.sub('\{.*?\}','',tag)
     node_items = []
@@ -138,9 +138,9 @@ def rec_parse(node):
     
     children = node[:] # shortcut for getchildren()
     for child in children:
-        child_data = rec_parse(child)
+        child_data = rec_parse(child, inline_tags=inline_tags)
         if child_data is None: continue 
-        if child_data['tag'] in {'content', 'sup', 'sub', 'linkHtml'}: # if the child node is an inline node then remove the nesting
+        if child_data['tag'] in inline_tags: # if the child node is an inline node then remove the nesting
             for i in child_data['nodes']:
                 node_items.append(i)
         else:
