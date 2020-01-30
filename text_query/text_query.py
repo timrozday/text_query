@@ -43,7 +43,7 @@ def get_nlp():
     lemmatizer = Lemmatizer(LEMMA_INDEX, LEMMA_EXC, LEMMA_RULES)
     nlp.tokenizer = custom_tokenizer(nlp)
     
-    return nlp
+    return nlp, lemmatizer
 
 def text_filter(s):
     try:
