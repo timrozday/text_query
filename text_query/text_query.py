@@ -296,76 +296,117 @@ def expand_brackets(sentence):
     
     return sentence
 
-def expand_slash(sentence):
+def expand_hyphen_slash(sentence):
     conn = sentence['conn']
-    rev_conn = gen_rev_conn(conn)
+    rev_conn = tq.gen_rev_conn(conn)
     
-    # find all slash words
-    words = list(sentence['words'].values())
-    new_words = []
-    for word in words:
-        if '/' in set(word['word']): # check if slashes are present (old: regex matching '^[^/]+/([^/]+/)*[^/]+$')
-            split_words = word['word'].split('/')
-            split_words = [w for w in split_words if len(w)>0]
-            if len(split_words) <= 1: continue
-                
-            max_id = max({w['id'] for w in (words + new_words)}) # for generating new IDs
+    # find all hyphenated/slash words
+    for w_i,word in sentence['words'].items():
+        if word['word'] in {'-', '/'}:
+            # get previous and next words
+            try: prev_words = rev_conn[w_i]
+            except: prev_words = set()
+            try: next_words = conn[w_i]
+            except: next_words = set()
             
-            for i,w in enumerate(split_words):
-                new_words.append({'id': max_id+i+1, 'word': w, 'type': word['type'], 'tag': word['tag'], 'parent': {word['id']}}) # add the new word
-                # generate the new connections to that word (copy them from the original word)
-                # try: conn[max_id+i+1] = set(conn[word['id']])
-                # except: pass
-                conn[max_id+i+1] = set(conn[word['id']])
-                if word['id'] in rev_conn:
-                    for word_id in rev_conn[word['id']]:
-                        conn[word_id].add(max_id+i+1)
-                rev_conn = gen_rev_conn(conn)
-    
-    sentence['words'] = {w['id']: w for w in words+new_words}
+            # go one more step forward and back
+            prev_prev_words = set()
+            for w in prev_words:
+                try: prev_prev_words.update(rev_conn[w])
+                except: continue
+            next_next_words = set()
+            for w in next_words:
+                try: next_next_words.update(conn[w])
+                except: continue
+            
+            #  prev --> next
+            for p in prev_words:
+                for n in next_words:
+                    conn[p].add(n)
+            #  prev_prev --> next      
+            for pp in prev_prev_words:
+                for n in next_words:
+                    conn[pp].add(n)
+            #  prev --> next_next
+            for p in prev_words:
+                for nn in next_next_words:
+                    conn[p].add(nn)
+                
+            rev_conn = tq.gen_rev_conn(conn)  # update rev_conn
+            
     sentence['conn'] = conn
     return sentence
 
-def expand_hyphen(sentence):
-    conn = sentence['conn']
-    rev_conn = gen_rev_conn(conn)
+# def expand_slash(sentence):
+#     conn = sentence['conn']
+#     rev_conn = gen_rev_conn(conn)
     
-    # find all hyphenated words
-    words = list(sentence['words'].values())
-    new_words = []
-    for word in words:
-        if '-' in set(word['word']): # check if hyphens are present
-            split_words = word['word'].split('-')
-            split_words = [w for w in split_words if len(w)>0]
-            if len(split_words) <= 1: continue
+#     # find all slash words
+#     words = list(sentence['words'].values())
+#     new_words = []
+#     for word in words:
+#         if '/' in set(word['word']): # check if slashes are present (old: regex matching '^[^/]+/([^/]+/)*[^/]+$')
+#             split_words = word['word'].split('/')
+#             split_words = [w for w in split_words if len(w)>0]
+#             if len(split_words) <= 1: continue
                 
-            max_id = max({w['id'] for w in (words + new_words)}) # for generating new IDs
+#             max_id = max({w['id'] for w in (words + new_words)}) # for generating new IDs
             
-            # add new words
-            new_words.append({'id': max_id+1, 'word': split_words[0], 'type': word['type'], 'tag': word['tag'], 'parent': {word['id']}})
-            new_words.append({'id': max_id+len(split_words), 'word': split_words[-1], 'type': word['type'], 'tag': word['tag'], 'parent': {word['id']}})
-            for i,w in enumerate(split_words[1:-1]):
-                new_words.append({'id': max_id+i+2, 'word': w, 'type': word['type'], 'tag': word['tag'], 'parent': {word['id']}}) # add the new word
-            
-            # add begining connections
-            if word['id'] in rev_conn.keys():
-                for word_id in rev_conn[word['id']]:
-                    conn[word_id].add(max_id+1)
-            
-            # try: conn[max_id+len(split_words)] = set(conn[word['id']]) # add end connections
-            # except: pass
-            conn[max_id+len(split_words)] = set(conn[word['id']]) # add end connections
-            
-            # add inbetween connections
-            for i in range(1,len(split_words)):
-                try: conn[max_id+i].add(max_id+i+1)
-                except: conn[max_id+i] = {max_id+i+1}
+#             for i,w in enumerate(split_words):
+#                 new_words.append({'id': max_id+i+1, 'word': w, 'type': word['type'], 'tag': word['tag'], 'parent': {word['id']}}) # add the new word
+#                 # generate the new connections to that word (copy them from the original word)
+#                 # try: conn[max_id+i+1] = set(conn[word['id']])
+#                 # except: pass
+#                 conn[max_id+i+1] = set(conn[word['id']])
+#                 if word['id'] in rev_conn:
+#                     for word_id in rev_conn[word['id']]:
+#                         conn[word_id].add(max_id+i+1)
+#                 rev_conn = gen_rev_conn(conn)
+    
+#     sentence['words'] = {w['id']: w for w in words+new_words}
+#     sentence['conn'] = conn
+#     return sentence
+
+# def expand_hyphen(sentence):
+#     conn = sentence['conn']
+#     rev_conn = gen_rev_conn(conn)
+    
+#     # find all hyphenated words
+#     words = list(sentence['words'].values())
+#     new_words = []
+#     for word in words:
+#         if '-' in set(word['word']): # check if hyphens are present
+#             split_words = word['word'].split('-')
+#             split_words = [w for w in split_words if len(w)>0]
+#             if len(split_words) <= 1: continue
                 
-            rev_conn = gen_rev_conn(conn)
+#             max_id = max({w['id'] for w in (words + new_words)}) # for generating new IDs
             
-    sentence['words'] = {w['id']: w for w in words+new_words}
-    sentence['conn'] = conn
-    return sentence
+#             # add new words
+#             new_words.append({'id': max_id+1, 'word': split_words[0], 'type': word['type'], 'tag': word['tag'], 'parent': {word['id']}})
+#             new_words.append({'id': max_id+len(split_words), 'word': split_words[-1], 'type': word['type'], 'tag': word['tag'], 'parent': {word['id']}})
+#             for i,w in enumerate(split_words[1:-1]):
+#                 new_words.append({'id': max_id+i+2, 'word': w, 'type': word['type'], 'tag': word['tag'], 'parent': {word['id']}}) # add the new word
+            
+#             # add begining connections
+#             if word['id'] in rev_conn.keys():
+#                 for word_id in rev_conn[word['id']]:
+#                     conn[word_id].add(max_id+1)
+            
+#             # try: conn[max_id+len(split_words)] = set(conn[word['id']]) # add end connections
+#             # except: pass
+#             conn[max_id+len(split_words)] = set(conn[word['id']]) # add end connections
+            
+#             # add inbetween connections
+#             for i in range(1,len(split_words)):
+#                 try: conn[max_id+i].add(max_id+i+1)
+#                 except: conn[max_id+i] = {max_id+i+1}
+                
+#             rev_conn = gen_rev_conn(conn)
+            
+#     sentence['words'] = {w['id']: w for w in words+new_words}
+#     sentence['conn'] = conn
+#     return sentence
 
 def expand_lists(sentence):
     conn = sentence['conn']
@@ -436,8 +477,9 @@ def expand_sentence(original_sentence):
     # add other conns based on parentheses, hyphens, slashes and lists
     sentence = expand_lists(original_sentence)
     sentence = expand_brackets(sentence)
-    sentence = expand_slash(sentence)
-    sentence = expand_hyphen(sentence)
+#     sentence = expand_slash(sentence)
+#     sentence = expand_hyphen(sentence)
+    sentence = expand_hyphen_slash(sentence)
 
     return sentence
 
