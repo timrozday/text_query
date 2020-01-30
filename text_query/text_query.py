@@ -5,6 +5,46 @@ import scispacy
 from html import unescape
 import copy
 
+import scispacy
+import spacy
+from spacy.lemmatizer import Lemmatizer
+from spacy.lang.en import LEMMA_INDEX, LEMMA_EXC, LEMMA_RULES
+from spacy.tokenizer import Tokenizer
+from spacy.lang.char_classes import ALPHA, ALPHA_LOWER, ALPHA_UPPER, CONCAT_QUOTES, LIST_ELLIPSES, LIST_ICONS
+from spacy.util import compile_prefix_regex, compile_infix_regex, compile_suffix_regex
+
+def custom_tokenizer(nlp):
+    _quotes = CONCAT_QUOTES.replace("'", "")
+    _infixes = (
+        LIST_ELLIPSES
+        + LIST_ICONS
+        + [
+            r"(?<=[{al}])\.(?=[{au}])".format(al=ALPHA_LOWER, au=ALPHA_UPPER),
+            r"(?<=[{a}])[,!?](?=[{a}])".format(a=ALPHA),
+            r'(?<=[{a}])[:<>=](?=[{a}])'.format(a=ALPHA),
+            r"(?<=[{a}]),(?=[{a}])".format(a=ALPHA),
+            r"(?<=[{a}])([{q}\)\]\(\[])(?=[{a}])".format(a=ALPHA, q=_quotes),
+            r"(?<=[{a}])--(?=[{a}])".format(a=ALPHA),
+            r"(?<=[{a}])-(?=[{a}])".format(a=ALPHA),  # add rule splitting words by hyphen
+            r"(?<=[{a}])/(?=[{a}])".format(a=ALPHA),  # add rule splitting words by slash
+            r"(?<=[0-9])-(?=[0-9])",
+        ]
+    )
+    infix_re = compile_infix_regex(_infixes)
+
+    return Tokenizer(nlp.vocab, prefix_search=nlp.tokenizer.prefix_search,
+                                suffix_search=nlp.tokenizer.suffix_search,
+                                infix_finditer=infix_re.finditer,
+                                token_match=nlp.tokenizer.token_match,
+                                rules=nlp.Defaults.tokenizer_exceptions)
+
+def get_nlp():
+    nlp = spacy.load('en_core_sci_md')
+    lemmatizer = Lemmatizer(LEMMA_INDEX, LEMMA_EXC, LEMMA_RULES)
+    nlp.tokenizer = custom_tokenizer(nlp)
+    
+    return nlp
+
 def text_filter(s):
     try:
         s = re.sub('\\\\n',' ',s)
