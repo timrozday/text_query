@@ -69,10 +69,13 @@ def split_tag_sentences(s, nlp, split_sentence=True, lemmatizer=None):
     if split_sentence:
         sents = []
         for sent in doc.sents:
-            start_idx = tagged_words[sent.start]['idx']
-            try: end_idx = tagged_words[sent.end]['idx']-1
+            start_idx = int(tagged_words[sent.start]['idx'])
+            try: end_idx = int(tagged_words[sent.end]['idx']-1)
             except: end_idx = len(s)
-            
+
+            for i in range(sent.start,sent.end):
+                tagged_words[i]['idx'] -= start_idx
+
             sents.append({'sentence': tagged_words[sent.start:sent.end], 'string': s[start_idx:end_idx]})
     else:
         sents = [{'sentence': tagged_words, 'string': s}]
