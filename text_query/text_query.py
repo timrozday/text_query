@@ -49,6 +49,7 @@ def text_filter(s):
     try:
         s = re.sub('\\\\n',' ',s)
         s = re.sub('\\\\t',' ',s)
+        s = re.sub("\\\\'","'",s)
         s = re.sub('^\s+','',s)
         s = re.sub('\s+$','',s)
         s = re.sub('\s+',' ',s)
