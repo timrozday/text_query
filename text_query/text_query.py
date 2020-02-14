@@ -8,7 +8,8 @@ import copy
 import scispacy
 import spacy
 from spacy.lemmatizer import Lemmatizer
-from spacy.lang.en import LEMMA_INDEX, LEMMA_EXC, LEMMA_RULES
+# from spacy.lang.en import LEMMA_INDEX, LEMMA_EXC, LEMMA_RULES
+from spacy.lang.en import English
 from spacy.tokenizer import Tokenizer
 from spacy.lang.char_classes import ALPHA, ALPHA_LOWER, ALPHA_UPPER, CONCAT_QUOTES, LIST_ELLIPSES, LIST_ICONS
 from spacy.util import compile_prefix_regex, compile_infix_regex, compile_suffix_regex
@@ -40,7 +41,8 @@ def custom_tokenizer(nlp):
 
 def get_nlp():
     nlp = spacy.load('en_core_sci_md')
-    lemmatizer = Lemmatizer(LEMMA_INDEX, LEMMA_EXC, LEMMA_RULES)
+#     lemmatizer = Lemmatizer(LEMMA_INDEX, LEMMA_EXC, LEMMA_RULES)
+    lemmatizer = English.Defaults.create_lemmatizer()
     nlp.tokenizer = custom_tokenizer(nlp)
     
     return nlp, lemmatizer
